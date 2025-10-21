@@ -297,9 +297,9 @@ npm run lint
 - [x] Database integration (PostgreSQL + Prisma)
 - [x] Auto-extract context (nama, instansi, event, pricing)
 - [x] Internal commands untuk CRM queries
-- [ ] Unit tests (minimum 6 test cases)
-- [ ] CRM integration (external)
-- [ ] Google Calendar integration
+- [x] Unit tests (minimum 6 test cases)
+- [x] CRM integration (external)
+- [x] Google Calendar integration
 
 ## License
 
