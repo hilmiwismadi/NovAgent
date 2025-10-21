@@ -1,0 +1,95 @@
+// This is your Prisma schema file
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// Model: User (CRM Data)
+// ============================================
+model User {
+  id            String         @id @db.VarChar(255) // WhatsApp ID: 628123456789@c.us
+  nama          String?        @db.VarChar(255)
+  instansi      String?        @db.VarChar(255)
+  event         String?        @db.VarChar(255)
+  ticketPrice   Int?
+  capacity      Int?
+  pricingScheme String?        @db.VarChar(50)
+  dealStatus    String         @default("prospect") @db.VarChar(50)
+  notes         String?        @db.Text
+
+  // Dashboard CRM Fields (from fe-won)
+  igLink          String?      @db.VarChar(255)
+  cpFirst         String?      @db.VarChar(100)  // Contact Person 1 (phone display)
+  cpSecond        String?      @db.VarChar(100)  // Contact Person 2
+  imgLogo         String?      @db.Text          // Base64 logo
+  imgPoster       String?      @db.Text          // Base64 poster
+  lastEvent       String?      @db.VarChar(255)  // Last event name
+  lastEventDate   DateTime?    @db.Date
+  linkDemo        String?      @db.VarChar(255)
+  lastSystem      String?      @db.VarChar(100)  // Previous ticketing system
+  colorPalette    String?      @db.VarChar(50)   // Brand color
+  dateEstimation  DateTime?    @db.Date          // Next event estimation
+  igEventLink     String?      @db.VarChar(255)
+  lastContact     DateTime?    @db.Date
+  pic             String?      @db.VarChar(100)  // Person In Charge
+  status          String?      @db.VarChar(50)   // To Do, Follow Up, Next Year
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  conversations Conversation[]
+  sessions      Session[]
+
+  @@index([nama])
+  @@index([instansi])
+  @@index([dealStatus])
+  @@index([status])
+  @@index([pic])
+  @@index([createdAt])
+  @@map("User")
+}
+
+// ============================================
+// Model: Conversation (Long-term Memory)
+// ============================================
+model Conversation {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @db.VarChar(255)
+  userMessage     String   @db.Text
+  agentResponse   String   @db.Text
+  toolsUsed       Json?    @db.JsonB
+  contextSnapshot Json?    @db.JsonB
+  timestamp       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([timestamp])
+  @@index([userId, timestamp(sort: Desc)])
+  @@map("Conversation")
+}
+
+// ============================================
+// Model: Session (Active Session Management)
+// ============================================
+model Session {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @unique @db.VarChar(255)
+  context           Json     @db.JsonB
+  conversationCount Int      @default(0)
+  lastActive        DateTime @default(now())
+  expiresAt         DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([lastActive])
+  @@map("Session")
+}

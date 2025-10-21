@@ -1,0 +1,35 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Node modules
+node_modules/
+
+# WhatsApp Web session and cache (contains secrets)
+.wwebjs_auth/
+.wwebjs_cache/
+
+# Message queue data
+.message-queue/
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+.claude/
+
+# Test coverage
+coverage/
