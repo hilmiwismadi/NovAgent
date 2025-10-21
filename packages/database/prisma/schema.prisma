@@ -41,6 +41,26 @@ model User {
   pic             String?      @db.VarChar(100)  // Person In Charge
   status          String?      @db.VarChar(50)   // To Do, Follow Up, Next Year
 
+  // Google Calendar Integration Fields
+  // Flow 1: Meeting Appointment
+  meetingDate         DateTime? @db.Timestamp
+  meetingCalendarId   String?   @db.VarChar(255)  // Google Calendar Event ID
+  meetingNotes        String?   @db.Text
+
+  // Flow 2: First Ticket Selling
+  ticketSaleDate      DateTime? @db.Timestamp
+  ticketSaleCalendarId String?  @db.VarChar(255)  // Google Calendar Event ID
+  ticketSaleNotes     String?   @db.Text
+
+  // Flow 3: Event D-Day
+  eventDayDate        DateTime? @db.Timestamp
+  eventDayCalendarId  String?   @db.VarChar(255)  // Google Calendar Event ID
+  eventDayVenue       String?   @db.VarChar(255)
+  eventDayNotes       String?   @db.Text
+
+  // Reminder tracking
+  remindersSent       Json?     @db.JsonB         // Track which reminders have been sent
+
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
