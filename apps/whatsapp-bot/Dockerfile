@@ -44,13 +44,14 @@ COPY packages/database/prisma ./prisma/
 COPY packages/database/init-sql ./database/
 
 # Install dependencies
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 # Copy application source
 COPY apps/whatsapp-bot/src ./src
 COPY packages/database/src ./src/database
 COPY packages/database/utils ./src/utils
 COPY packages/knowledge/src ./src/knowledge
+COPY packages/calendar/src ./packages/calendar/src
 
 # Generate Prisma Client
 RUN npx prisma generate

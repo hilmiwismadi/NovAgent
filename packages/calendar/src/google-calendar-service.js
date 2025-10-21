@@ -73,16 +73,30 @@ export class GoogleCalendarService {
         }
       } = eventData;
 
+      // Helper to format date for Google Calendar API in local timezone
+      const formatDateTimeLocal = (date) => {
+        if (!(date instanceof Date)) return date;
+        // Format as YYYY-MM-DDTHH:mm:ss without Z suffix
+        // This tells Google Calendar to interpret in the specified timeZone
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+      };
+
       const event = {
         summary,
         description,
         location,
         start: {
-          dateTime: start instanceof Date ? start.toISOString() : start,
+          dateTime: formatDateTimeLocal(start),
           timeZone: 'Asia/Jakarta'
         },
         end: {
-          dateTime: end instanceof Date ? end.toISOString() : end,
+          dateTime: formatDateTimeLocal(end),
           timeZone: 'Asia/Jakarta'
         },
         attendees: attendees.map(email => ({ email })),

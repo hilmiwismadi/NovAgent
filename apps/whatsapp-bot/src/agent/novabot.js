@@ -3,6 +3,7 @@ import { ChatPromptTemplate, MessagesPlaceholder } from "@langchain/core/prompts
 import { StringOutputParser } from "@langchain/core/output_parsers";
 import { novatixContext, getPricing } from "../knowledge/novatix-context.js";
 import { DatabaseService } from "../database/database-service.js";
+import { CalendarSyncService } from "../../packages/calendar/src/calendar-sync.js";
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -21,6 +22,8 @@ export class NovaBot {
 
     this.userId = userId; // WhatsApp ID
     this.db = new DatabaseService();
+    this.calendarSync = new CalendarSyncService(this.db);
+    this.calendarInitialized = false; // Track if calendar is ready
     this.conversationHistory = [];
     this.userContext = {
       nama: null,
@@ -28,7 +31,10 @@ export class NovaBot {
       ticketPrice: null,
       capacity: null,
       eventName: null,
-      eventDate: null
+      eventDate: null,
+      meetingDate: null,
+      ticketSaleDate: null,
+      eventDayDate: null
     };
 
     this.systemPrompt = this.buildSystemPrompt();
@@ -88,6 +94,12 @@ Jawab pertanyaan berikut dengan konteks percakapan sebelumnya.`;
   async chat(userMessage) {
     // Extract price and capacity from message if available
     this.extractContextFromMessage(userMessage);
+
+    // Initialize calendar if not already done (lazy initialization)
+    await this.initializeCalendar();
+
+    // Sync calendar events if dates were extracted
+    await this.syncCalendarEvents();
 
     // Build conversation history
     const messages = [
@@ -331,7 +343,8 @@ INSTRUKSI WAJIB:
     // Flow 1: Meeting appointment dates
     const meetingPatterns = [
       /(?:meeting|rapat|bertemu|diskusi|consultation)\s+(?:tanggal|pada|di)?\s*(\d{1,2})[\/\-\s](\d{1,2})[\/\-\s]?(\d{2,4})?/i,
-      /(?:meeting|rapat|bertemu)\s+(?:besok|minggu depan|bulan depan)/i,
+      /(?:meeting|rapat|bertemu)\s+(?:besok|lusa|minggu depan|bulan depan)/i,
+      /(?:meeting|rapat|bertemu)(?:nya)?\s+(?:besok|lusa|minggu depan|bulan depan)/i,
       /(?:jadwal|schedule)\s+(?:meeting|rapat)\s+(\d{1,2})\s+(\w+)/i
     ];
 
@@ -392,38 +405,69 @@ INSTRUKSI WAJIB:
   /**
    * Parse Indonesian date formats to Date object
    * Supports: DD/MM/YYYY, DD-MM-YYYY, DD Month YYYY, relative dates
+   * Also extracts time in WIB (GMT+7) format
    */
   parseIndonesianDate(dateStr, fullMessage) {
     try {
       const lowerDateStr = dateStr.toLowerCase();
-      const now = new Date();
+      const lowerMessage = fullMessage.toLowerCase();
 
-      // Handle relative dates
+      // Extract time from the full message (look for "jam HH:MM" or "HH:MM")
+      let hour = 10; // Default 10 AM WIB
+      let minute = 0;
+
+      const timePatterns = [
+        /jam\s+(\d{1,2})[:\.](\d{2})/i,        // "jam 10:00" or "jam 10.00"
+        /jam\s+(\d{1,2})\s*(?:wib|wit|wita)?/i, // "jam 10 WIB" or just "jam 10"
+        /pukul\s+(\d{1,2})[:\.](\d{2})/i,      // "pukul 10:00"
+        /pukul\s+(\d{1,2})\s*(?:wib|wit|wita)?/i, // "pukul 10"
+        /(\d{1,2})[:\.](\d{2})\s*(?:wib|wit|wita)/i  // "10:00 WIB"
+      ];
+
+      for (const pattern of timePatterns) {
+        const timeMatch = lowerMessage.match(pattern);
+        if (timeMatch) {
+          hour = parseInt(timeMatch[1]);
+          minute = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+
+          // Validate hour and minute
+          if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+            console.log(`[DEBUG] Extracted time: ${hour}:${minute.toString().padStart(2, '0')} WIB`);
+            break;
+          }
+        }
+      }
+
+      // Get current time in WIB (GMT+7)
+      const now = new Date();
+      const nowWIB = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+
+      // Handle relative dates (all in WIB timezone)
       if (lowerDateStr.includes('besok')) {
-        const tomorrow = new Date(now);
+        const tomorrow = new Date(nowWIB);
         tomorrow.setDate(tomorrow.getDate() + 1);
-        tomorrow.setHours(10, 0, 0, 0); // Default 10 AM
+        tomorrow.setHours(hour, minute, 0, 0);
         return tomorrow;
       }
 
       if (lowerDateStr.includes('lusa')) {
-        const dayAfter = new Date(now);
+        const dayAfter = new Date(nowWIB);
         dayAfter.setDate(dayAfter.getDate() + 2);
-        dayAfter.setHours(10, 0, 0, 0);
+        dayAfter.setHours(hour, minute, 0, 0);
         return dayAfter;
       }
 
       if (lowerDateStr.includes('minggu depan')) {
-        const nextWeek = new Date(now);
+        const nextWeek = new Date(nowWIB);
         nextWeek.setDate(nextWeek.getDate() + 7);
-        nextWeek.setHours(10, 0, 0, 0);
+        nextWeek.setHours(hour, minute, 0, 0);
         return nextWeek;
       }
 
       if (lowerDateStr.includes('bulan depan')) {
-        const nextMonth = new Date(now);
+        const nextMonth = new Date(nowWIB);
         nextMonth.setMonth(nextMonth.getMonth() + 1);
-        nextMonth.setHours(10, 0, 0, 0);
+        nextMonth.setHours(hour, minute, 0, 0);
         return nextMonth;
       }
 
@@ -440,11 +484,12 @@ INSTRUKSI WAJIB:
       if (monthMatch) {
         const day = parseInt(monthMatch[1]);
         const monthStr = monthMatch[2].toLowerCase();
-        const year = monthMatch[3] ? parseInt(monthMatch[3]) : now.getFullYear();
+        const year = monthMatch[3] ? parseInt(monthMatch[3]) : nowWIB.getFullYear();
 
         const month = monthNames[monthStr];
         if (month !== undefined && day >= 1 && day <= 31) {
-          const date = new Date(year, month, day, 10, 0, 0, 0);
+          // Create date in WIB timezone with extracted time
+          const date = new Date(year, month, day, hour, minute, 0, 0);
           if (!isNaN(date.getTime())) {
             return date;
           }
@@ -459,10 +504,11 @@ INSTRUKSI WAJIB:
         const month = parseInt(numericMatch[2]) - 1; // 0-indexed
         const year = numericMatch[3] ?
           (numericMatch[3].length === 2 ? 2000 + parseInt(numericMatch[3]) : parseInt(numericMatch[3])) :
-          now.getFullYear();
+          nowWIB.getFullYear();
 
         if (month >= 0 && month <= 11 && day >= 1 && day <= 31) {
-          const date = new Date(year, month, day, 10, 0, 0, 0);
+          // Create date in WIB timezone with extracted time
+          const date = new Date(year, month, day, hour, minute, 0, 0);
           if (!isNaN(date.getTime())) {
             return date;
           }
@@ -476,6 +522,70 @@ INSTRUKSI WAJIB:
     }
   }
 
+  /**
+   * Initialize Google Calendar integration (lazy initialization)
+   */
+  async initializeCalendar() {
+    if (!this.calendarInitialized) {
+      this.calendarInitialized = await this.calendarSync.initialize();
+      if (this.calendarInitialized) {
+        console.log('[NovaBot] ✅ Google Calendar integration enabled');
+      } else {
+        console.log('[NovaBot] ⚠️  Google Calendar integration disabled or failed');
+      }
+    }
+  }
+
+  /**
+   * Sync extracted dates to Google Calendar
+   * Creates calendar events for meetings, ticket sales, and event days
+   */
+  async syncCalendarEvents() {
+    // Only sync if calendar is initialized
+    if (!this.calendarInitialized) {
+      return;
+    }
+
+    try {
+      // Sync meeting appointments
+      if (this.userContext.meetingDate) {
+        console.log(`[NovaBot] 📅 Creating meeting event for ${this.userId}`);
+        await this.calendarSync.createMeetingEvent(
+          this.userId,
+          this.userContext.meetingDate,
+          { notes: 'Scheduled via WhatsApp conversation' }
+        );
+        // Clear the date so we don't recreate it on next message
+        this.userContext.meetingDate = null;
+      }
+
+      // Sync ticket sale launch dates
+      if (this.userContext.ticketSaleDate) {
+        console.log(`[NovaBot] 🎫 Creating ticket sale event for ${this.userId}`);
+        await this.calendarSync.createTicketSaleEvent(
+          this.userId,
+          this.userContext.ticketSaleDate,
+          { notes: 'Ticket sale date mentioned in WhatsApp conversation' }
+        );
+        this.userContext.ticketSaleDate = null;
+      }
+
+      // Sync event D-Day dates
+      if (this.userContext.eventDayDate) {
+        console.log(`[NovaBot] 🎉 Creating event day for ${this.userId}`);
+        await this.calendarSync.createEventDay(
+          this.userId,
+          this.userContext.eventDayDate,
+          { notes: 'Event date mentioned in WhatsApp conversation' }
+        );
+        this.userContext.eventDayDate = null;
+      }
+    } catch (error) {
+      console.error('[NovaBot] ❌ Error syncing calendar events:', error.message);
+      // Don't throw - calendar sync failure shouldn't break the chat flow
+    }
+  }
+
   async resetConversation() {
     this.conversationHistory = [];
     this.userContext = {
@@ -484,7 +594,10 @@ INSTRUKSI WAJIB:
       ticketPrice: null,
       capacity: null,
       eventName: null,
-      eventDate: null
+      eventDate: null,
+      meetingDate: null,
+      ticketSaleDate: null,
+      eventDayDate: null
     };
 
     // Reset session in database

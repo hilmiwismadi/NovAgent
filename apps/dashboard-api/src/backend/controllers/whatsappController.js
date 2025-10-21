@@ -13,7 +13,8 @@ const prisma = new PrismaClient();
  */
 class WhatsAppController {
   constructor() {
-    this.queueDir = path.join(__dirname, '../../../.message-queue');
+    // Use absolute path to ensure it matches the volume mount
+    this.queueDir = '/app/.message-queue';
     this.ensureQueueDir();
   }
 
@@ -28,7 +29,11 @@ class WhatsAppController {
    */
   async sendMessage(req, res) {
     try {
+      console.log('[WhatsApp Controller] ===== INCOMING REQUEST =====');
+      console.log('[WhatsApp Controller] RAW BODY:', JSON.stringify(req.body, null, 2));
       const { to, message } = req.body;
+      console.log('[WhatsApp Controller] Extracted TO:', to);
+      console.log('[WhatsApp Controller] Extracted MESSAGE:', message);
 
       if (!to || !message) {
         return res.status(400).json({

@@ -107,10 +107,13 @@ export class WhatsAppClient {
           const { to, message } = messageData;
 
           console.log(`[Queue] Sending message to ${to}`);
+          console.log(`[Queue] Message content: "${message}"`);
+          console.log(`[Queue] Client state:`, await this.client.getState());
 
           // Send message via WhatsApp
-          await this.client.sendMessage(to, message);
+          const result = await this.client.sendMessage(to, message);
 
+          console.log(`[Queue] SendMessage result:`, result);
           console.log(`[Queue] ✅ Message sent to ${to}`);
 
           // Delete queue file after successful send (with existence check)
@@ -120,6 +123,8 @@ export class WhatsAppClient {
 
         } catch (error) {
           console.error(`[Queue] Error processing ${filename}:`, error.message);
+          console.error(`[Queue] Full error details:`, error);
+          console.error(`[Queue] Stack:`, error.stack);
           // Keep the file for retry
         }
       }
