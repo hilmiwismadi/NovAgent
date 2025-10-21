@@ -1,0 +1,16 @@
+{
+  "name": "@novagent/calendar",
+  "version": "1.0.0",
+  "description": "Google Calendar integration for NovAgent",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "echo \"No tests yet\""
+  },
+  "dependencies": {
+    "googleapis": "^140.0.1",
+    "node-cron": "^3.0.3"
+  },
+  "author": "AgentZcy",
+  "license": "MIT"
+}
