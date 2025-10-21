@@ -326,6 +326,154 @@ INSTRUKSI WAJIB:
         }
       }
     }
+
+    // Extract dates for calendar events (3 flows)
+    // Flow 1: Meeting appointment dates
+    const meetingPatterns = [
+      /(?:meeting|rapat|bertemu|diskusi|consultation)\s+(?:tanggal|pada|di)?\s*(\d{1,2})[\/\-\s](\d{1,2})[\/\-\s]?(\d{2,4})?/i,
+      /(?:meeting|rapat|bertemu)\s+(?:besok|minggu depan|bulan depan)/i,
+      /(?:jadwal|schedule)\s+(?:meeting|rapat)\s+(\d{1,2})\s+(\w+)/i
+    ];
+
+    for (const pattern of meetingPatterns) {
+      const match = message.match(pattern);
+      if (match) {
+        const dateStr = match[0];
+        const parsedDate = this.parseIndonesianDate(dateStr, message);
+        if (parsedDate) {
+          this.userContext.meetingDate = parsedDate;
+          console.log(`[DEBUG] Extracted meeting date: ${parsedDate}`);
+          break;
+        }
+      }
+    }
+
+    // Flow 2: Ticket sale start dates
+    const ticketSalePatterns = [
+      /(?:tiket|ticket)\s+(?:sale|mulai dijual|dibuka|launching)\s+(?:tanggal|pada|di)?\s*(\d{1,2})[\/\-\s](\d{1,2})[\/\-\s]?(\d{2,4})?/i,
+      /(?:penjualan tiket|ticket sale)\s+(?:tanggal|pada|di)?\s*(\d{1,2})[\/\-\s](\d{1,2})[\/\-\s]?(\d{2,4})?/i,
+      /(?:open sale|pre sale|early bird)\s+(\d{1,2})\s+(\w+)/i
+    ];
+
+    for (const pattern of ticketSalePatterns) {
+      const match = message.match(pattern);
+      if (match) {
+        const dateStr = match[0];
+        const parsedDate = this.parseIndonesianDate(dateStr, message);
+        if (parsedDate) {
+          this.userContext.ticketSaleDate = parsedDate;
+          console.log(`[DEBUG] Extracted ticket sale date: ${parsedDate}`);
+          break;
+        }
+      }
+    }
+
+    // Flow 3: Event D-Day dates
+    const eventDayPatterns = [
+      /(?:event|acara|konser|festival)\s+(?:tanggal|pada|di)?\s*(\d{1,2})[\/\-\s](\d{1,2})[\/\-\s]?(\d{2,4})?/i,
+      /(?:d-day|hari H|pelaksanaan)\s+(?:tanggal|pada|di)?\s*(\d{1,2})[\/\-\s](\d{1,2})[\/\-\s]?(\d{2,4})?/i,
+      /(?:tanggal|jadwal)\s+(\d{1,2})\s+(\w+)\s+(\d{4})/i
+    ];
+
+    for (const pattern of eventDayPatterns) {
+      const match = message.match(pattern);
+      if (match) {
+        const dateStr = match[0];
+        const parsedDate = this.parseIndonesianDate(dateStr, message);
+        if (parsedDate) {
+          this.userContext.eventDayDate = parsedDate;
+          console.log(`[DEBUG] Extracted event day date: ${parsedDate}`);
+          break;
+        }
+      }
+    }
+  }
+
+  /**
+   * Parse Indonesian date formats to Date object
+   * Supports: DD/MM/YYYY, DD-MM-YYYY, DD Month YYYY, relative dates
+   */
+  parseIndonesianDate(dateStr, fullMessage) {
+    try {
+      const lowerDateStr = dateStr.toLowerCase();
+      const now = new Date();
+
+      // Handle relative dates
+      if (lowerDateStr.includes('besok')) {
+        const tomorrow = new Date(now);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(10, 0, 0, 0); // Default 10 AM
+        return tomorrow;
+      }
+
+      if (lowerDateStr.includes('lusa')) {
+        const dayAfter = new Date(now);
+        dayAfter.setDate(dayAfter.getDate() + 2);
+        dayAfter.setHours(10, 0, 0, 0);
+        return dayAfter;
+      }
+
+      if (lowerDateStr.includes('minggu depan')) {
+        const nextWeek = new Date(now);
+        nextWeek.setDate(nextWeek.getDate() + 7);
+        nextWeek.setHours(10, 0, 0, 0);
+        return nextWeek;
+      }
+
+      if (lowerDateStr.includes('bulan depan')) {
+        const nextMonth = new Date(now);
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        nextMonth.setHours(10, 0, 0, 0);
+        return nextMonth;
+      }
+
+      // Indonesian month names
+      const monthNames = {
+        'januari': 0, 'februari': 1, 'maret': 2, 'april': 3,
+        'mei': 4, 'juni': 5, 'juli': 6, 'agustus': 7,
+        'september': 8, 'oktober': 9, 'november': 10, 'desember': 11
+      };
+
+      // Parse DD Month YYYY (e.g., "15 Desember 2025")
+      const monthPattern = /(\d{1,2})\s+(\w+)\s*(\d{4})?/i;
+      const monthMatch = dateStr.match(monthPattern);
+      if (monthMatch) {
+        const day = parseInt(monthMatch[1]);
+        const monthStr = monthMatch[2].toLowerCase();
+        const year = monthMatch[3] ? parseInt(monthMatch[3]) : now.getFullYear();
+
+        const month = monthNames[monthStr];
+        if (month !== undefined && day >= 1 && day <= 31) {
+          const date = new Date(year, month, day, 10, 0, 0, 0);
+          if (!isNaN(date.getTime())) {
+            return date;
+          }
+        }
+      }
+
+      // Parse DD/MM/YYYY or DD-MM-YYYY
+      const numericPattern = /(\d{1,2})[\/\-](\d{1,2})[\/\-]?(\d{2,4})?/;
+      const numericMatch = dateStr.match(numericPattern);
+      if (numericMatch) {
+        const day = parseInt(numericMatch[1]);
+        const month = parseInt(numericMatch[2]) - 1; // 0-indexed
+        const year = numericMatch[3] ?
+          (numericMatch[3].length === 2 ? 2000 + parseInt(numericMatch[3]) : parseInt(numericMatch[3])) :
+          now.getFullYear();
+
+        if (month >= 0 && month <= 11 && day >= 1 && day <= 31) {
+          const date = new Date(year, month, day, 10, 0, 0, 0);
+          if (!isNaN(date.getTime())) {
+            return date;
+          }
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error('[DEBUG] Error parsing date:', error);
+      return null;
+    }
   }
 
   async resetConversation() {
