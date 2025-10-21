@@ -1,8 +1,13 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import dashboardRoutes from './routes/dashboardRoutes.js';
-import waClientManager from './shared/whatsappClientManager.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load environment variables
 dotenv.config();
@@ -23,11 +28,34 @@ app.use((req, res, next) => {
 
 // Health check
 app.get('/health', (req, res) => {
+  // Check WhatsApp status via shared message queue
+  // If queue is empty or has few pending messages, WhatsApp bot is processing them
+  let whatsappStatus = 'disconnected';
+  try {
+    const queueDir = path.join(__dirname, '../../.message-queue');
+
+    if (fs.existsSync(queueDir)) {
+      const files = fs.readdirSync(queueDir);
+      const pendingMessages = files.filter(f => f.endsWith('.json')).length;
+
+      // If there are no pending messages or very few, bot is likely connected and processing
+      if (pendingMessages === 0) {
+        whatsappStatus = 'ready';
+      } else if (pendingMessages < 10) {
+        whatsappStatus = 'processing';
+      } else {
+        whatsappStatus = 'disconnected';
+      }
+    }
+  } catch (error) {
+    whatsappStatus = 'unknown';
+  }
+
   res.json({
     status: 'OK',
     timestamp: new Date().toISOString(),
     service: 'NovAgent Dashboard API',
-    whatsapp: waClientManager.isClientReady() ? 'connected' : 'disconnected'
+    whatsapp: whatsappStatus
   });
 });
 

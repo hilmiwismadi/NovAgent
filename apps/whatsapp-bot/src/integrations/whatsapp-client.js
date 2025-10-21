@@ -27,10 +27,15 @@ export class WhatsAppClient {
         dataPath: './.wwebjs_auth'
       }),
       puppeteer: {
-        headless: false, // Set to false for better stability
+        headless: true, // Must be true for Docker/production
         args: [
           '--no-sandbox',
-          '--disable-setuid-sandbox'
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--disable-gpu'
         ]
       },
       // Use local web version cache for stability

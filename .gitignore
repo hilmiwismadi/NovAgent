@@ -2,6 +2,7 @@
 .env
 .env.local
 .env.*.local
+.env.production.local
 
 # Node modules
 node_modules/
@@ -33,3 +34,13 @@ Thumbs.db
 
 # Test coverage
 coverage/
+
+# Docker volumes and data
+.docker/
+docker-data/
+
+# Backups
+backups/
+*.sql
+*.tar.gz
+wa-session-backup.tar.gz
