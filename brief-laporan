@@ -1,0 +1,35 @@
+Latar Belakang
+- NovaTix adalah startup beranggotakan 3 orang untuk operasional bisnis. Berjalan secara aktif selama 7 bulan terakhir, Traksi yang didapatkan telah menghandle 12 event client dan berhasil menjual 4.900+ tiket pada platform kami (lampiran screenshot fitur NovaTix)
+
+Problem statement
+- Dalam operasional yang berjalan, kami memiliki bottleneck terhadap hal yang membutuhkan HR untuk operasional bisnis antara lain seperti
+- Customer Service terhadap komunikasi dengan client yang berjalan maupun potensial client dari lead sales
+- Startup platform ticketing sudah banyak yang berkembang dan memiliki karyawan besar, untuk NovaTix dapat bersaing perlu mengejar target sales dan kompetitor punya tim sales bekerja 9 to 5 sehingga kami sebagai startup mahasiswa perlu membuat otomasi untuk mengejar client
+- Terkadang ada beberapa informasi yang terlewat antara kami bertiga dan tidak terekap dalam notulensi harian serta terkadang ada pertanyaan repetitif yang tidak tersentralisasi, perlu adanya role “sekretaris” yang menyelesaikan permasalahan tersebut
+
+Solution Overview
+- Chat bot yang melayani on going client dan potential client untuk menjawab informasi yang telah kami simpan dari knowledge seperti pertanyaan soal langkah menggunakan fitur dan negosiasi harga pricing
+- Chat bot personal assistant yang menyimpan data client dan memberi informasi apabila tim internal memerlukan recap client dan notulensi yang dibutuhkan
+- Integrasi dengan CRM sehingga dapat memonitor dan automasi sales lewat dashboard
+- Integrasi dengan Google calendar untuk melakukan penjadwalan pada tanggal penting
+
+
+Technical Architecture
+- Penjelasan implementasi langchain
+- Penjelasan implementasi groq dan model llama
+- Penjelasan tools (knowledge, crm, gcal)
+- Penjelasan memory (user, conversatio, session)
+
+
+Integration Details
+- Whatsapp (penjelasan file code yang relevan secara singkat)
+- CRM (penjelasan folder dan file code yang relevan secara singkat)
+- Google Calendar (penjelasan folder dan file code yang relevan secara singkat)
+
+Screenshot demo
+- langkah-langkah chat bot ke client dan penjelasan singkat
+- langkah-langkah chat bot ke tim internal dan penjelasan singkat
+- langkah-langkah fitur CRM dan penjelasan singkat
+- langkah-langkah penjadwalan dengan google calendar penjelasan singkat
+
+untuk testing bab Testing Results dan Conclusion saya serahkan pada claude
