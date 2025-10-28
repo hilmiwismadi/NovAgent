@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
+import WhitelistManager from './WhitelistManager';
 import './Dashboard.css';
 
 export default function Dashboard() {
+  const [activeTab, setActiveTab] = useState('crm'); // 'crm' or 'whitelist'
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -11,8 +13,15 @@ export default function Dashboard() {
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
 
+  // Add client state
+  const [newClientPhone, setNewClientPhone] = useState('');
+  const [newClientName, setNewClientName] = useState('');
+  const [addingClient, setAddingClient] = useState(false);
+  const [whitelistData, setWhitelistData] = useState({});
+
   useEffect(() => {
     fetchClients();
+    fetchWhitelistData();
   }, []);
 
   const fetchClients = async () => {
@@ -26,6 +35,20 @@ export default function Dashboard() {
       console.error('Error fetching clients:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchWhitelistData = async () => {
+    try {
+      const data = await api.getAllWhitelist('client');
+      // Create a map: phoneNumber -> true for quick lookup
+      const whitelistMap = {};
+      data.forEach(entry => {
+        whitelistMap[entry.phoneNumber] = true;
+      });
+      setWhitelistData(whitelistMap);
+    } catch (err) {
+      console.error('Error fetching whitelist:', err);
     }
   };
 
@@ -95,6 +118,67 @@ export default function Dashboard() {
     return whatsappId.replace('@c.us', '');
   };
 
+  const handleAddClient = async (e) => {
+    e.preventDefault();
+    if (!newClientPhone.trim()) {
+      alert('Nomor WhatsApp harus diisi!');
+      return;
+    }
+
+    try {
+      setAddingClient(true);
+      await api.addToWhitelist({
+        phoneNumber: newClientPhone,
+        type: 'client',
+        nama: newClientName || null
+      });
+
+      // Clear form
+      setNewClientPhone('');
+      setNewClientName('');
+
+      // Refresh both clients and whitelist data
+      await fetchClients();
+      await fetchWhitelistData();
+
+      alert('✅ Client berhasil ditambahkan!\nBot sekarang akan merespon chat dari nomor ini.');
+    } catch (err) {
+      console.error('Error adding client:', err);
+      alert('❌ Gagal menambah client: ' + err.message);
+    } finally {
+      setAddingClient(false);
+    }
+  };
+
+  const handleToggleWhitelist = async (phoneNumber, currentStatus) => {
+    const action = currentStatus ? 'hapus dari' : 'tambahkan ke';
+    const actionIng = currentStatus ? 'menghapus' : 'menambahkan';
+
+    if (!confirm(`${action.charAt(0).toUpperCase() + action.slice(1)} whitelist untuk ${phoneNumber.replace('@c.us', '')}?\n\nBot ${currentStatus ? 'tidak akan' : 'akan'} merespon chat dari nomor ini.`)) {
+      return;
+    }
+
+    try {
+      if (currentStatus) {
+        // Remove from whitelist
+        await api.removeFromWhitelist(phoneNumber);
+      } else {
+        // Add to whitelist
+        await api.addToWhitelist({
+          phoneNumber: phoneNumber,
+          type: 'client',
+          nama: null
+        });
+      }
+
+      await fetchWhitelistData();
+      alert(`✅ Berhasil ${actionIng} whitelist!`);
+    } catch (err) {
+      console.error(`Error ${actionIng} whitelist:`, err);
+      alert(`❌ Gagal ${actionIng} whitelist: ` + err.message);
+    }
+  };
+
   if (loading) {
     return (
       <div className="dashboard-container">
@@ -116,35 +200,86 @@ export default function Dashboard() {
     <div className="dashboard-container">
       <header className="dashboard-header">
         <h1>NovAgent CRM Dashboard</h1>
-        <button onClick={fetchClients} className="refresh-btn">
-          🔄 Refresh
-        </button>
+        <div className="tab-navigation">
+          <button
+            onClick={() => setActiveTab('crm')}
+            className={`tab-btn ${activeTab === 'crm' ? 'active' : ''}`}
+          >
+            📊 CRM
+          </button>
+          <button
+            onClick={() => setActiveTab('whitelist')}
+            className={`tab-btn ${activeTab === 'whitelist' ? 'active' : ''}`}
+          >
+            📋 Whitelist
+          </button>
+        </div>
+        {activeTab === 'crm' && (
+          <button onClick={fetchClients} className="refresh-btn">
+            🔄 Refresh
+          </button>
+        )}
       </header>
 
-      <div className="dashboard-stats">
-        <div className="stat-card">
-          <h3>Total Clients</h3>
-          <p>{clients.length}</p>
-        </div>
-        <div className="stat-card">
-          <h3>To Do</h3>
-          <p>{clients.filter(c => c.status === 'To Do').length}</p>
-        </div>
-        <div className="stat-card">
-          <h3>Follow Up</h3>
-          <p>{clients.filter(c => c.status === 'Follow Up').length}</p>
-        </div>
-        <div className="stat-card">
-          <h3>Next Year</h3>
-          <p>{clients.filter(c => c.status === 'Next Year').length}</p>
-        </div>
-      </div>
+      {/* CRM TAB CONTENT */}
+      {activeTab === 'crm' && (
+        <>
+          {/* Add Client Section */}
+          <div className="add-client-section">
+            <h3>➕ Tambah Client Baru</h3>
+            <p className="section-description">
+              Client yang ditambahkan otomatis masuk ke whitelist agar bot bisa merespon chat mereka.
+            </p>
+            <form onSubmit={handleAddClient} className="add-client-form">
+              <div className="form-row">
+                <input
+                  type="text"
+                  value={newClientPhone}
+                  onChange={(e) => setNewClientPhone(e.target.value)}
+                  placeholder="Nomor WhatsApp (contoh: 08123456789 atau 628123456789)"
+                  disabled={addingClient}
+                  className="client-phone-input"
+                />
+                <input
+                  type="text"
+                  value={newClientName}
+                  onChange={(e) => setNewClientName(e.target.value)}
+                  placeholder="Nama client (opsional)"
+                  disabled={addingClient}
+                  className="client-name-input"
+                />
+                <button type="submit" disabled={addingClient} className="client-add-btn">
+                  {addingClient ? '⏳ Menambah...' : '✅ Tambah Client'}
+                </button>
+              </div>
+            </form>
+          </div>
 
-      <div className="table-container">
+          <div className="dashboard-stats">
+            <div className="stat-card">
+              <h3>Total Clients</h3>
+              <p>{clients.length}</p>
+            </div>
+            <div className="stat-card">
+              <h3>To Do</h3>
+              <p>{clients.filter(c => c.status === 'To Do').length}</p>
+            </div>
+            <div className="stat-card">
+              <h3>Follow Up</h3>
+              <p>{clients.filter(c => c.status === 'Follow Up').length}</p>
+            </div>
+            <div className="stat-card">
+              <h3>Next Year</h3>
+              <p>{clients.filter(c => c.status === 'Next Year').length}</p>
+            </div>
+          </div>
+
+          <div className="table-container">
         <table className="crm-table">
           <thead>
             <tr>
               <th>No</th>
+              <th>Whitelist</th>
               <th>WhatsApp</th>
               <th>Nama</th>
               <th>Instansi / EO</th>
@@ -158,9 +293,20 @@ export default function Dashboard() {
             </tr>
           </thead>
           <tbody>
-            {clients.map((client, index) => (
+            {clients.map((client, index) => {
+              const isWhitelisted = whitelistData[client.id] || false;
+              return (
               <tr key={client.id}>
                 <td>{index + 1}</td>
+                <td className="whitelist-cell">
+                  <button
+                    onClick={() => handleToggleWhitelist(client.id, isWhitelisted)}
+                    className={`whitelist-toggle-btn ${isWhitelisted ? 'active' : 'inactive'}`}
+                    title={isWhitelisted ? 'Klik untuk remove dari whitelist' : 'Klik untuk add ke whitelist'}
+                  >
+                    {isWhitelisted ? '✅ Active' : '❌ Inactive'}
+                  </button>
+                </td>
                 <td className="phone-cell">{formatPhone(client.id)}</td>
                 <td>
                   <input
@@ -242,7 +388,8 @@ export default function Dashboard() {
                   </button>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -255,21 +402,52 @@ export default function Dashboard() {
               <button onClick={() => setSelectedClient(null)}>✕</button>
             </div>
 
-            <div className="conversations-container">
+            <div className="chat-history-container">
               {conversations.length === 0 ? (
-                <p className="no-messages">No conversation history</p>
+                <div className="no-messages-placeholder">
+                  <div className="no-messages-icon">💬</div>
+                  <p>No messages yet</p>
+                  <span>Start a conversation below</span>
+                </div>
               ) : (
-                conversations.map((conv) => (
-                  <div key={conv.id} className="conversation">
-                    <div className="message user-message">
-                      <strong>User:</strong> {conv.userMessage}
+                <div className="chat-bubbles">
+                  {conversations.map((conv) => (
+                    <div key={conv.id}>
+                      {/* User Message (if exists) */}
+                      {conv.userMessage && (
+                        <div className="chat-bubble-wrapper user-bubble-wrapper">
+                          <div className="chat-bubble user-bubble">
+                            <div className="bubble-content">{conv.userMessage}</div>
+                            <div className="bubble-time">
+                              {new Date(conv.timestamp).toLocaleTimeString('id-ID', {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Agent/Admin Message (if exists) */}
+                      {conv.agentResponse && (
+                        <div className="chat-bubble-wrapper agent-bubble-wrapper">
+                          <div className="chat-bubble agent-bubble">
+                            <div className="bubble-sender">
+                              {conv.metadata?.source === 'dashboard' ? 'Admin' : 'NovaBot'}
+                            </div>
+                            <div className="bubble-content">{conv.agentResponse}</div>
+                            <div className="bubble-time">
+                              {new Date(conv.timestamp).toLocaleTimeString('id-ID', {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div className="message agent-message">
-                      <strong>NovaBot:</strong> {conv.agentResponse}
-                    </div>
-                    <div className="timestamp">{new Date(conv.timestamp).toLocaleString('id-ID')}</div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </div>
 
@@ -293,6 +471,13 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+      )}
+        </>
+      )}
+
+      {/* WHITELIST TAB CONTENT */}
+      {activeTab === 'whitelist' && (
+        <WhitelistManager />
       )}
     </div>
   );

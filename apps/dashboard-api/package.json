@@ -1,17 +1,17 @@
 {
-  "name": "novagent",
+  "name": "novagent-dashboard-api",
   "version": "1.0.0",
   "description": "NovaTix AI Agent - Customer service chatbot for ticketing platform",
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node src/cli.js",
+    "start": "node src/backend/server.js",
     "start:wa": "node src/wa-bot.js",
-    "start:dashboard": "node dashboard/backend/server.js",
+    "start:dashboard": "node src/backend/server.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "dev": "node src/cli.js",
     "dev:wa": "node src/wa-bot.js",
-    "dev:dashboard": "node dashboard/backend/server.js",
+    "dev:dashboard": "node src/backend/server.js",
     "migrate:fewon": "node scripts/migrate-from-fewon.js"
   },
   "keywords": [

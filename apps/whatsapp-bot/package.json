@@ -1,5 +1,5 @@
 {
-  "name": "novagent",
+  "name": "novagent-whatsapp-bot",
   "version": "1.0.0",
   "description": "NovaTix AI Agent - Customer service chatbot for ticketing platform",
   "main": "index.js",

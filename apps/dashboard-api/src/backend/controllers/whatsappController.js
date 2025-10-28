@@ -13,8 +13,22 @@ const prisma = new PrismaClient();
  */
 class WhatsAppController {
   constructor() {
-    // Use absolute path to ensure it matches the volume mount
-    this.queueDir = '/app/.message-queue';
+    // Detect environment and set appropriate queue directory
+    // Check if running in Docker or locally
+    const isWindows = process.platform === 'win32';
+
+    if (isWindows || !fs.existsSync('/app')) {
+      // Local development on Windows/Mac/Linux
+      // Navigate from: apps/dashboard-api/src/backend/controllers -> project root
+      const projectRoot = path.resolve(__dirname, '../../../../../');
+      this.queueDir = path.join(projectRoot, '.message-queue');
+    } else {
+      // Docker environment
+      this.queueDir = '/app/.message-queue';
+    }
+
+    console.log('[WhatsApp Controller] Platform:', process.platform);
+    console.log('[WhatsApp Controller] Queue directory:', this.queueDir);
     this.ensureQueueDir();
   }
 

@@ -1,6 +1,7 @@
 import express from 'express';
 import crmController from '../controllers/crmController.js';
 import whatsappController from '../controllers/whatsappController.js';
+import whitelistController from '../controllers/whitelistController.js';
 
 const router = express.Router();
 
@@ -23,6 +24,14 @@ router.get('/conversations/:userId', crmController.getConversations.bind(crmCont
 // WhatsApp Integration
 router.post('/whatsapp/send', whatsappController.sendMessage.bind(whatsappController));
 router.get('/whatsapp/status', whatsappController.getStatus.bind(whatsappController));
+
+// Whitelist Management
+router.get('/whitelist', whitelistController.getAllWhitelist.bind(whitelistController));
+router.get('/whitelist/stats', whitelistController.getStats.bind(whitelistController));
+router.get('/whitelist/check/:phoneNumber', whitelistController.checkWhitelist.bind(whitelistController));
+router.post('/whitelist', whitelistController.addToWhitelist.bind(whitelistController));
+router.patch('/whitelist/:phoneNumber', whitelistController.updateWhitelist.bind(whitelistController));
+router.delete('/whitelist/:phoneNumber', whitelistController.removeFromWhitelist.bind(whitelistController));
 
 // Statistics
 router.get('/statistics', crmController.getStatistics.bind(crmController));

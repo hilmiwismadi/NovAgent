@@ -6,8 +6,9 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { NovaBot } from '../agent/novabot.js';
-import { DatabaseService } from '../database/database-service.js';
-import { IntentDetector } from '../utils/intent-detector.js';
+import { DatabaseService } from '../../../../packages/database/src/database-service.js';
+import { IntentDetector } from '../../../../packages/database/utils/intent-detector.js';
+import whitelistService from '../../../dashboard-api/src/backend/services/whitelistService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -60,9 +61,10 @@ export class WhatsAppClient {
     // Intent detector for natural language commands
     this.intentDetector = new IntentDetector();
 
-    // Queue processor
-    this.queueDir = path.join(__dirname, '../../.message-queue');
+    // Queue processor - path from apps/whatsapp-bot/src/integrations to project root
+    this.queueDir = path.join(__dirname, '../../../../.message-queue');
     this.queueProcessorInterval = null;
+    console.log('[WhatsApp Client] Queue directory:', this.queueDir);
     this.ensureQueueDir();
 
     this.setupEventHandlers();
@@ -115,6 +117,22 @@ export class WhatsAppClient {
 
           console.log(`[Queue] SendMessage result:`, result);
           console.log(`[Queue] ✅ Message sent to ${to}`);
+
+          // Save to database as outgoing admin message
+          try {
+            const db = new (await import('../../../../packages/database/src/database-service.js')).DatabaseService();
+            await db.saveConversation(
+              to,
+              '',  // Empty user message since this is outgoing from admin
+              message,  // Agent response is the message we sent
+              ['dashboard_send'],
+              { source: 'dashboard', direction: 'outgoing' }
+            );
+            console.log(`[Queue] ✅ Message saved to database for ${to}`);
+          } catch (dbError) {
+            console.error(`[Queue] Failed to save message to DB:`, dbError.message);
+            // Continue anyway - message was sent successfully
+          }
 
           // Delete queue file after successful send (with existence check)
           if (fs.existsSync(filePath)) {
@@ -171,6 +189,42 @@ export class WhatsAppClient {
   }
 
   /**
+   * Load whitelist from database
+   * This overrides .env whitelist with database values
+   */
+  async loadWhitelistFromDB() {
+    try {
+      console.log('[WhatsApp] Loading whitelist from database...');
+
+      const [clientNumbers, internalNumbers] = await Promise.all([
+        whitelistService.getPhoneNumbersByType('client'),
+        whitelistService.getPhoneNumbersByType('internal')
+      ]);
+
+      this.whitelist = clientNumbers;
+      this.internalNumbers = internalNumbers;
+
+      console.log(`[WhatsApp] ✅ Whitelist loaded from database:`);
+      console.log(`  - ${clientNumbers.length} client numbers`);
+      console.log(`  - ${internalNumbers.length} internal numbers`);
+
+      return true;
+    } catch (error) {
+      console.error('[WhatsApp] ❌ Error loading whitelist from database:', error.message);
+      console.log('[WhatsApp] ⚠️  Falling back to .env whitelist');
+      return false;
+    }
+  }
+
+  /**
+   * Refresh whitelist from database
+   * Called periodically to sync with database changes
+   */
+  async refreshWhitelist() {
+    await this.loadWhitelistFromDB();
+  }
+
+  /**
    * Check if a contact is whitelisted
    */
   isWhitelisted(contactId) {
@@ -179,9 +233,9 @@ export class WhatsAppClient {
       return true;
     }
 
-    // If whitelist is empty, allow all
+    // STRICT MODE: If whitelist is empty, BLOCK all (default secure)
     if (this.whitelist.length === 0) {
-      return true;
+      return false;
     }
 
     // Check if contact is in whitelist
@@ -235,22 +289,40 @@ export class WhatsAppClient {
     });
 
     // Client ready
-    this.client.on('ready', () => {
+    this.client.on('ready', async () => {
       console.log('\n' + '='.repeat(60));
       console.log('  ✅ NovaBot WhatsApp Client is Ready!');
       console.log('='.repeat(60));
 
-      if (this.whitelistEnabled && this.whitelist.length > 0) {
-        console.log('\n📋 Whitelist Enabled:');
-        this.whitelist.forEach(num => console.log(`  - ${num}`));
+      // Load whitelist from database (overrides .env)
+      await this.loadWhitelistFromDB();
+
+      if (this.whitelistEnabled) {
+        if (this.whitelist.length > 0) {
+          console.log('\n📋 Whitelist ACTIVE Mode:');
+          console.log('  ✅ Client whitelist:', this.whitelist.length, 'numbers');
+          console.log('  ✅ Internal whitelist:', this.internalNumbers.length, 'numbers');
+          console.log('  🔐 Bot will only respond to whitelisted numbers');
+        } else {
+          console.log('\n🔒 Whitelist STRICT Mode:');
+          console.log('  ⚠️  Whitelist is EMPTY');
+          console.log('  🚫 Bot will NOT respond to ANY messages');
+          console.log('  ℹ️  Add numbers via dashboard to enable responses');
+        }
       } else {
-        console.log('\n⚠️  Whitelist Disabled - Bot akan menerima semua pesan');
+        console.log('\n⚠️  Whitelist DISABLED - Bot will accept all messages');
       }
 
       console.log('\n' + '='.repeat(60) + '\n');
 
       // Start queue processor for dashboard messages
       this.startQueueProcessor();
+
+      // Refresh whitelist from database every 5 minutes
+      setInterval(async () => {
+        console.log('[WhatsApp] 🔄 Refreshing whitelist from database...');
+        await this.refreshWhitelist();
+      }, 5 * 60 * 1000); // 5 minutes
     });
 
     // Authentication success
@@ -581,7 +653,11 @@ export class WhatsAppClient {
 
       // Check whitelist
       if (!this.isWhitelisted(contactId)) {
-        console.log(`[WhatsApp] Message from ${contactId} (${contactName}) - NOT WHITELISTED`);
+        if (this.whitelist.length === 0) {
+          console.log(`[WhatsApp] 🚫 BLOCKED: Message from ${contactName} (${contactId}) - Whitelist is EMPTY (strict mode)`);
+        } else {
+          console.log(`[WhatsApp] 🚫 BLOCKED: Message from ${contactName} (${contactId}) - NOT in whitelist`);
+        }
         return;
       }
 

@@ -75,6 +75,41 @@ class DashboardAPI {
       })
     });
   }
+
+  // Whitelist Management
+  async getAllWhitelist(type = null) {
+    const query = type ? `?type=${type}` : '';
+    return this.request(`/whitelist${query}`);
+  }
+
+  async getWhitelistStats() {
+    return this.request('/whitelist/stats');
+  }
+
+  async addToWhitelist(data) {
+    return this.request('/whitelist', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async updateWhitelist(phoneNumber, data) {
+    return this.request(`/whitelist/${encodeURIComponent(phoneNumber)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async removeFromWhitelist(phoneNumber) {
+    return this.request(`/whitelist/${encodeURIComponent(phoneNumber)}`, {
+      method: 'DELETE'
+    });
+  }
+
+  async checkWhitelist(phoneNumber, type = null) {
+    const query = type ? `?type=${type}` : '';
+    return this.request(`/whitelist/check/${encodeURIComponent(phoneNumber)}${query}`);
+  }
 }
 
 export default new DashboardAPI();

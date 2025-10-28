@@ -113,3 +113,21 @@ model Session {
   @@index([lastActive])
   @@map("Session")
 }
+
+// ============================================
+// Model: Whitelist (WhatsApp Whitelist Management)
+// ============================================
+model Whitelist {
+  id          String   @id @default(uuid()) @db.Uuid
+  phoneNumber String   @unique @db.VarChar(255) // Format: 628123456789@c.us
+  type        String   @db.VarChar(20)          // "client" or "internal"
+  nama        String?  @db.VarChar(255)         // Optional contact name
+  addedBy     String?  @db.VarChar(100)         // Who added this number
+  notes       String?  @db.Text                 // Optional notes
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([phoneNumber])
+  @@index([type])
+  @@map("Whitelist")
+}

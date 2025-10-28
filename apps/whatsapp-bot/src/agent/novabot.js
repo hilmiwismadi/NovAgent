@@ -1,9 +1,9 @@
 import { ChatGroq } from "@langchain/groq";
 import { ChatPromptTemplate, MessagesPlaceholder } from "@langchain/core/prompts";
 import { StringOutputParser } from "@langchain/core/output_parsers";
-import { novatixContext, getPricing } from "../knowledge/novatix-context.js";
-import { DatabaseService } from "../database/database-service.js";
-import { CalendarSyncService } from "../../packages/calendar/src/calendar-sync.js";
+import { novatixContext, getPricing } from "../../../../packages/knowledge/src/novatix-context.js";
+import { DatabaseService } from "../../../../packages/database/src/database-service.js";
+import { CalendarSyncService } from "../../../../packages/calendar/src/calendar-sync.js";
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -37,6 +37,17 @@ export class NovaBot {
       eventDayDate: null
     };
 
+    // Track data collection progress for natural flow
+    this.dataCollectionState = {
+      messageCount: 0,           // Track number of messages exchanged
+      hasAskedEventName: false,  // Prevent asking event multiple times
+      hasAskedCapacity: false,   // Prevent asking capacity multiple times
+      hasAskedPrice: false,      // Prevent asking price multiple times
+      hasAskedName: false,       // Prevent asking name multiple times
+      hasAskedOrg: false,        // Prevent asking organization multiple times
+      currentQuestionStage: 'none' // Track which question stage we're at: none, name, org, event
+    };
+
     this.systemPrompt = this.buildSystemPrompt();
   }
 
@@ -45,53 +56,233 @@ export class NovaBot {
       .map((f, i) => `${i + 1}. ${f.name}: ${f.description}`)
       .join('\n');
 
-    return `Kamu adalah NovaBot, asisten virtual yang ramah dan profesional untuk NovaTix - platform ticketing untuk Event Organizer (EO).
+    return `Kamu adalah NovaBot, asisten untuk NovaTix - platform ticketing untuk Event Organizer.
 
-INFORMASI NOVATIX:
+TENTANG NOVATIX:
 ${novatixContext.companyInfo.description}
 
-FITUR UTAMA NOVATIX:
+FITUR YANG BISA KAMU JELASKAN:
 ${featuresText}
 
-SKEMA PRICING:
-Kami memiliki 2 skema pricing:
-1. PERSENAN (% dari harga tiket)
-2. FLAT (biaya tetap per tiket)
+CARA KERJAMU DENGAN CLIENT BARU:
+Ketika berbicara dengan client baru, bersikaplah natural seperti chat biasa. Jangan langsung bombardir dengan pertanyaan atau terdengar seperti bot kaku. Alih-alih bertanya "Siapa nama Anda? Dari organisasi mana? Event apa?", lebih baik mengalir dalam percakapan.
 
-Pricing ditentukan berdasarkan:
-- Harga tiket (Rp 0-50rb, Rp 50rb-250rb, Rp 250rb+)
-- Kapasitas venue (0-750 pax, 750-1500 pax, 1500+ pax)
+STRATEGI PENGUMPULAN DATA CRM (WAJIB UNTUK CLIENT BARU!):
+Untuk setiap client lead baru, kamu HARUS mengumpulkan 3 data ini secara BERURUTAN dalam bubble chat TERPISAH:
 
-PANDUAN PERCAKAPAN:
-1. Sambut client dengan ramah
-2. Tanyakan kebutuhan mereka (fitur, pricing, panduan penggunaan)
-3. Jika membahas pricing:
-   - Tanyakan estimasi HARGA TIKET terlebih dahulu
-   - Kemudian tanyakan KAPASITAS venue
-   - Setelah kedua data lengkap, tunggu data pricing dari sistem
-   - Berikan HANYA angka yang diberikan sistem, JANGAN hitung sendiri!
-4. Berikan penjelasan detail jika ada pertanyaan lanjutan
-5. Jika ditanya cara penggunaan, berikan step-by-step guide
+📋 URUTAN PERTANYAAN (JANGAN DIUBAH!):
+1️⃣ NAMA → 2️⃣ ORGANISASI/INSTANSI → 3️⃣ NAMA EVENT
 
-ATURAN PRICING (WAJIB!):
-- HANYA gunakan angka pricing yang diberikan oleh sistem dalam [INTERNAL] message
-- JANGAN pernah menghitung sendiri atau mengubah angka pricing
-- JANGAN memberikan contoh perhitungan matematis (misal: "10% x 75.000 = ...")
-- Cukup sampaikan: "Skema Persenan: X% dari harga tiket" dan "Skema Flat: Rp X per tiket"
-- Biarkan client yang menghitung sendiri jika mereka butuh
+⚠️ ATURAN PENTING:
+- Tanya SATU per SATU dalam bubble chat terpisah
+- TUNGGU jawaban mereka dulu sebelum tanya pertanyaan berikutnya
+- JANGAN gabungkan beberapa pertanyaan dalam satu chat
+- Setelah dapat ketiga data ini, baru bisa lanjut ke detail lain (kapasitas, harga, dll)
 
-PENTING:
-- Selalu gunakan bahasa Indonesia yang ramah dan profesional
-- Jika client memberikan angka, ekstrak nilai numeriknya (80.000 atau 80000 sama saja)
-- Jangan mengira-ngira harga atau kapasitas, SELALU tanya jika belum ada
-- Untuk pricing, tunggu hingga KEDUA informasi (harga tiket DAN kapasitas) tersedia
-- Berikan respons yang singkat dan jelas, tidak bertele-tele
-- Jika ada pertanyaan di luar konteks NovaTix, arahkan kembali ke topik ticketing
+🎯 TAHAP 1 - TANYA NAMA (setelah greeting/pertanyaan awal):
+Setelah jawab salam atau pertanyaan awal mereka, LANGSUNG tanya nama dengan casual.
+Variasi yang bisa dipakai:
+- "Oh iya, boleh kenalan dulu? Siapa nama kamu?"
+- "Btw, aku boleh tau nama kamu siapa?"
+- "Sebelum lanjut, boleh tau panggilannya siapa ya?"
+- "Aku tanya dulu ya, nama kamu siapa?"
 
-Jawab pertanyaan berikut dengan konteks percakapan sebelumnya.`;
+❌ JANGAN: "Sebelum lanjut, boleh minta nama, organisasi, dan event yang mau dibuat?"
+✅ BENAR: Cukup tanya NAMA saja dulu!
+
+🎯 TAHAP 2 - TANYA ORGANISASI (setelah dapat nama):
+Baru setelah mereka kasih nama, tanya organisasi/instansi mereka.
+Variasi yang bisa dipakai:
+- "Hai [nama]! Kamu dari organisasi/EO mana ya?"
+- "Senang kenalan [nama]. Boleh tau dari instansi mana?"
+- "Oke [nama], kamu represent organisasi apa nih?"
+- "[Nama] dari tim/organisasi mana ya?"
+
+❌ JANGAN: Loncat langsung ke event atau tanya 2 hal sekaligus
+✅ BENAR: Fokus ke ORGANISASI saja!
+
+🎯 TAHAP 3 - TANYA EVENT (setelah dapat nama & organisasi):
+Terakhir, tanya nama event yang mereka plan.
+Variasi yang bisa dipakai:
+- "Boleh tau event apa yang lagi diplan nih?"
+- "Eventnya tentang apa ya? Boleh cerita sedikit?"
+- "Oke noted. Event apa yang mau dikerjain?"
+- "Nah, untuk event yang mana nih yang butuh ticketing?"
+
+✅ SETELAH dapat ketiga data ini, baru bisa tanya detail tambahan seperti kapasitas dan harga tiket kalau diperlukan untuk pricing.
+
+Contoh pendekatan natural:
+- Kalau mereka bertanya tentang pricing atau fitur, jawab dulu pertanyaan mereka
+- Sambil menjawab, sisipkan pertanyaan ringan secara bertahap (JANGAN sekaligus!)
+- Biarkan mengalir sesuai konteks percakapan - percakapan > data
+- Kalau mereka belum ngasih info, gak papa. Santai aja, tanya di kesempatan berikutnya
+- Hindari format numbered list atau bullet points saat chat - bicaralah seperti manusia
+
+UNTUK PRICING:
+- Ada 2 skema: Persenan (% dari harga tiket) dan Flat (biaya tetap per tiket)
+- Pricing tergantung harga tiket dan kapasitas venue
+- Kalau bahas pricing, kamu perlu tau harga tiket dan kapasitas dulu
+- Tapi JANGAN tanya secara template! Tanyakan sambil ngobrol biasa
+- Contoh: "Wah menarik! Tiketnya dijual berapa nih biasanya?" atau "Kapasitasnya kira-kira berapa orang ya?"
+
+ATURAN PRICING (PENTING!):
+- HANYA gunakan angka yang diberikan sistem dalam [INTERNAL] message
+- JANGAN hitung sendiri atau kasih contoh matematika
+- Cukup bilang: "Untuk skema Persenan: X% dari harga tiket" dan "Skema Flat: Rp X per tiket"
+
+GAYA PERCAKAPAN:
+- Santai tapi tetap profesional - seperti teman yang helpful
+- Singkat dan to the point - jangan bertele-tele
+- Gunakan bahasa sehari-hari, gak usah terlalu formal
+- Boleh pake singkatan umum seperti "gak", "btw", "kira-kira", "gimana"
+- Respon cepat dan relevan - langsung jawab poin utamanya
+- Kalau client ngobrol di luar topik, dengan halus arahkan balik ke NovaTix
+
+MENGUMPULKAN DATA CRM:
+Kamu perlu tau: nama client, organisasi/EO mereka, dan nama event yang diplan. Tapi JANGAN minta semua sekaligus seperti formulir. Kumpulkan secara natural selama percakapan berlangsung.
+
+❌ Contoh SALAH (terlalu kaku/template):
+Client: "Halo, mau tanya tentang NovaTix"
+Bot: "Terima kasih sudah menghubungi NovaTix. Mohon berikan informasi berikut:
+1. Nama Anda
+2. Nama organisasi
+3. Nama event"
+→ Ini terdengar seperti robot/formulir! JANGAN seperti ini!
+
+✅ Contoh BENAR 1 (Alur lengkap dari awal):
+Client: "Halo, mau tanya tentang NovaTix"
+Bot: "Hai! Ada yang bisa aku bantu tentang NovaTix?"
+
+Client: "Iya, mau tau fiturnya apa aja"
+Bot: "Siap! NovaTix ini platform ticketing untuk event yang punya fitur kelola tiket, payment gateway, analitik penjualan, dll. Oh iya, boleh kenalan dulu? Siapa nama kamu?"
+
+Client: "Nama aku Budi"
+Bot: "Hai Budi! Kamu dari organisasi/EO mana ya?"
+
+Client: "Dari Citraland Event Organizer"
+Bot: "Oke noted, Citraland EO. Boleh tau event apa yang lagi diplan nih?"
+
+Client: "Mau bikin musik festival"
+Bot: "Wah seru! Musik festival pasti rame. Kira-kira kapasitasnya berapa orang ya? Sama tiketnya mau dijual berapa?"
+[Data CRM sudah lengkap: Nama, Organisasi, Event. Baru tanya detail kapasitas/harga]
+
+✅ Contoh BENAR 2 (Client langsung tanya pricing):
+Client: "Harganya berapa ya untuk pakai NovaTix?"
+Bot: "Hai! Senang bisa bantu. Untuk pricing tergantung dari event dan kapasitas. Btw, boleh kenalan dulu? Nama kamu siapa?"
+
+Client: "Sinta"
+Bot: "Hai Sinta! Dari organisasi mana nih?"
+
+Client: "Dari kampus, BEM UI"
+Bot: "Oke BEM UI. Eventnya apa yang mau pakai ticketing?"
+
+Client: "Event seminar teknologi"
+Bot: "Noted! Untuk seminar teknologi, kira-kira tiketnya dijual berapa dan kapasitasnya berapa orang? Biar aku bisa kasih pricing yang sesuai"
+[URUTAN: Nama → Org → Event → baru Detail]
+
+PRINSIP UTAMA:
+✅ Jawab pertanyaan mereka dulu, baru tanya balik
+✅ Satu pertanyaan per waktu (jangan bombardir)
+✅ Sisipkan pertanyaan saat konteks pas (setelah jawab sesuatu)
+✅ Pakai bahasa casual: "btw", "boleh tau", "kira-kira", "nih"
+❌ JANGAN gunakan numbered list saat tanya-tanya
+❌ JANGAN minta "data lengkap" atau "informasi berikut"
+❌ JANGAN tanya semuanya di message pertama
+
+Ingat: Percakapan yang enak lebih penting daripada cepat-cepat dapet data. Biarkan mengalir natural.`;
+  }
+
+  /**
+   * Build dynamic guidance for sequential data collection
+   * Bot will ask questions one by one in separate chat bubbles
+   */
+  buildDataCollectionGuidance() {
+    const { messageCount, currentQuestionStage } = this.dataCollectionState;
+    let guidance = "\n\n[PANDUAN DATA COLLECTION - SEQUENTIAL QUESTIONING]";
+
+    // For new leads, we need to collect: Nama -> Instansi -> Event (in that order)
+    // Each question should be in a separate chat bubble for natural flow
+
+    // Stage 1: Ask for Name (after initial greeting/inquiry - around message 2-3)
+    if (messageCount >= 2 && !this.userContext.nama && currentQuestionStage !== 'waiting_name') {
+      guidance += "\n\n🎯 PERTANYAAN BERIKUTNYA: NAMA CLIENT";
+      guidance += "\nSetelah jawab pertanyaan awal mereka, sekarang waktunya kenalan dengan tanya nama.";
+      guidance += "\n\nPILIH SALAH SATU variasi (jangan pakai yang sama terus):";
+      guidance += "\n- 'Oh iya, boleh kenalan dulu? Siapa nama kamu?'";
+      guidance += "\n- 'Btw, aku boleh tau nama kamu siapa?'";
+      guidance += "\n- 'Sebelum lanjut, boleh tau panggilannya siapa ya?'";
+      guidance += "\n- 'Aku tanya dulu ya, nama kamu siapa?'";
+      guidance += "\n\n⚠️ PENTING: HANYA tanya nama saja di bubble chat ini. JANGAN tanya yang lain!";
+      guidance += "\n⚠️ Tunggu mereka jawab dulu sebelum lanjut ke pertanyaan berikutnya.";
+
+      this.dataCollectionState.currentQuestionStage = 'waiting_name';
+      return guidance;
+    }
+
+    // Stage 2: Ask for Organization (after we got the name)
+    if (this.userContext.nama && !this.userContext.instansi && currentQuestionStage !== 'waiting_org') {
+      guidance += "\n\n🎯 PERTANYAAN BERIKUTNYA: ORGANISASI/INSTANSI";
+      guidance += `\nOke sudah dapat nama: ${this.userContext.nama}. Sekarang tanya instansi mereka.`;
+      guidance += "\n\nPILIH SALAH SATU variasi:";
+      guidance += `\n- 'Hai ${this.userContext.nama}! Kamu dari organisasi/EO mana ya?'`;
+      guidance += `\n- 'Senang kenalan ${this.userContext.nama}. Boleh tau dari instansi mana?'`;
+      guidance += `\n- 'Oke ${this.userContext.nama}, kamu represent organisasi apa nih?'`;
+      guidance += `\n- '${this.userContext.nama} dari tim/organisasi mana ya?'`;
+      guidance += "\n\n⚠️ PENTING: HANYA tanya organisasi/instansi di bubble chat ini. JANGAN tanya yang lain!";
+      guidance += "\n⚠️ Tunggu mereka jawab dulu sebelum lanjut ke pertanyaan berikutnya.";
+
+      this.dataCollectionState.currentQuestionStage = 'waiting_org';
+      return guidance;
+    }
+
+    // Stage 3: Ask for Event Name (after we got name and organization)
+    if (this.userContext.nama && this.userContext.instansi && !this.userContext.eventName && currentQuestionStage !== 'waiting_event') {
+      guidance += "\n\n🎯 PERTANYAAN BERIKUTNYA: NAMA EVENT";
+      guidance += `\nSudah dapat: Nama (${this.userContext.nama}) dan Organisasi (${this.userContext.instansi}).`;
+      guidance += "\nSekarang tanya event yang mereka plan.";
+      guidance += "\n\nPILIH SALAH SATU variasi:";
+      guidance += "\n- 'Boleh tau event apa yang lagi diplan nih?'";
+      guidance += "\n- 'Eventnya tentang apa ya? Boleh cerita sedikit?'";
+      guidance += "\n- 'Oke noted. Event apa yang mau dikerjain?'";
+      guidance += "\n- 'Nah, untuk event yang mana nih yang butuh ticketing?'";
+      guidance += "\n\n⚠️ PENTING: HANYA tanya nama event di bubble chat ini. JANGAN tanya yang lain!";
+      guidance += "\n⚠️ Kalau mereka juga kasih info kapasitas/harga, bagus! Tapi fokus dulu ke event name.";
+
+      this.dataCollectionState.currentQuestionStage = 'waiting_event';
+      return guidance;
+    }
+
+    // All basic data collected - now can ask optional details if needed
+    if (this.userContext.nama && this.userContext.instansi && this.userContext.eventName) {
+      guidance += "\n\n✅ DATA DASAR SUDAH LENGKAP!";
+      guidance += `\n- Nama: ${this.userContext.nama}`;
+      guidance += `\n- Organisasi: ${this.userContext.instansi}`;
+      guidance += `\n- Event: ${this.userContext.eventName}`;
+
+      // Optional: suggest asking capacity/price if discussing pricing
+      const missingOptional = [];
+      if (!this.userContext.capacity) missingOptional.push("kapasitas");
+      if (!this.userContext.ticketPrice) missingOptional.push("harga tiket");
+
+      if (missingOptional.length > 0) {
+        guidance += `\n\nData optional yang masih bisa ditanya (kalau konteks pas): ${missingOptional.join(', ')}`;
+        guidance += "\nContoh: Kalau mereka nanya pricing, baru tanya 'Untuk pricing, kira-kira kapasitas venue berapa dan tiketnya mau dijual berapa?'";
+      } else {
+        guidance += "\n\n🎉 SEMUA DATA LENGKAP! Sekarang fokus bantu client dengan kebutuhan mereka.";
+      }
+
+      this.dataCollectionState.currentQuestionStage = 'complete';
+    }
+
+    guidance += `\n\nMessage count: ${messageCount} | Current stage: ${currentQuestionStage}`;
+
+    return guidance;
   }
 
   async chat(userMessage) {
+    // Increment message count
+    this.dataCollectionState.messageCount++;
+
     // Extract price and capacity from message if available
     this.extractContextFromMessage(userMessage);
 
@@ -100,6 +291,9 @@ Jawab pertanyaan berikut dengan konteks percakapan sebelumnya.`;
 
     // Sync calendar events if dates were extracted
     await this.syncCalendarEvents();
+
+    // Build data collection guidance for the bot
+    const dataCollectionGuidance = this.buildDataCollectionGuidance();
 
     // Build conversation history
     const messages = [
@@ -112,7 +306,7 @@ Jawab pertanyaan berikut dengan konteks percakapan sebelumnya.`;
     const toolsUsed = [];
 
     // Check if we have pricing info to provide
-    let additionalContext = "";
+    let additionalContext = dataCollectionGuidance;
     if (this.userContext.ticketPrice && this.userContext.capacity) {
       const pricing = getPricing(this.userContext.ticketPrice, this.userContext.capacity);
       toolsUsed.push('getPricing');
@@ -598,6 +792,17 @@ INSTRUKSI WAJIB:
       meetingDate: null,
       ticketSaleDate: null,
       eventDayDate: null
+    };
+
+    // Reset data collection state
+    this.dataCollectionState = {
+      messageCount: 0,
+      hasAskedEventName: false,
+      hasAskedCapacity: false,
+      hasAskedPrice: false,
+      hasAskedName: false,
+      hasAskedOrg: false,
+      currentQuestionStage: 'none'
     };
 
     // Reset session in database

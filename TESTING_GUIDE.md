@@ -1,3 +1,67 @@
+Perfect! I can see the Backend API and Frontend are running successfully. The WhatsApp bot has a Puppeteer error, but I'll show you how to run it
+  properly.
+
+  Manual Setup Guide - Run Each Service in Separate Terminals
+
+  Important: Make Sure Node.js v20 is Active
+
+  Before starting, ensure you're using Node.js v20 in each terminal:
+
+  nvm use 20.19.5
+
+  ---
+  Terminal 1️⃣: Backend API (Dashboard Backend)
+
+  cd D:\Hilmi\Coding\wolfs_of_novatix\NovAgent\apps\dashboard-api
+  npm run start:dashboard
+
+  ✅ This runs on http://localhost:5000
+
+  ---
+  Terminal 2️⃣: Frontend Dashboard
+
+  cd D:\Hilmi\Coding\wolfs_of_novatix\NovAgent\apps\dashboard-web\src
+  npm run dev
+
+  ✅ This runs on http://localhost:5173
+
+  ---
+  Terminal 3️⃣: WhatsApp Bot
+
+  cd D:\Hilmi\Coding\wolfs_of_novatix\NovAgent\apps\whatsapp-bot
+  npm run start:wa
+
+  ⚠️ Note: The WhatsApp bot may have Chromium issues. If it crashes, try:
+
+  # Delete the auth cache first
+  rmdir /S /Q .wwebjs_auth .wwebjs_cache
+
+  # Then try again
+  npm run start:wa
+
+  When it works, you'll see a QR code - scan it with WhatsApp.
+
+  ---
+  Quick Summary
+
+  | Service      | Directory              | Command                 | Port |
+  |--------------|------------------------|-------------------------|------|
+  | Backend API  | apps/dashboard-api     | npm run start:dashboard | 5000 |
+  | Frontend     | apps/dashboard-web/src | npm run dev             | 5173 |
+  | WhatsApp Bot | apps/whatsapp-bot      | npm run start:wa        | -    |
+
+  ---
+  Current Status
+
+  - ✅ Backend API: Running on http://localhost:5000
+  - ✅ Frontend: Running on http://localhost:5173
+  - ❌ WhatsApp Bot: Has Puppeteer error (needs troubleshooting)
+
+  You can access the dashboard now at http://localhost:5173 - it's already connected to the backend!
+
+  Would you like me to help fix the WhatsApp bot Puppeteer issue?
+
+
 # 🧪 NovAgent Calendar Feature Testing Guide
 
 **Last Updated:** October 21, 2025
