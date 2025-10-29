@@ -1,34 +1,35 @@
 /**
  * Unit Tests for CRM Service
- * Tests dashboard API service layer
+ * Simple tests focusing on testable logic without complex mocking
  */
 
 import { describe, test, expect } from '@jest/globals';
 
-describe('CRM Service', () => {
-  describe('Client Retrieval', () => {
-    test('should format client data for dashboard', () => {
-      const rawClient = {
-        id: '628123456789@c.us',
-        nama: 'John Doe',
-        instansi: 'Acme Corp',
-        event: 'Tech Conference',
-        dealStatus: 'negotiating',
-        ticketPrice: 150000,
-        capacity: 500
-      };
+describe('CRM Service - Utility Functions', () => {
+  describe('Client Data Formatting', () => {
+    test('should format phone number from WhatsApp ID', () => {
+      const whatsappId = '628123456789@c.us';
+      const formatted = whatsappId.replace('@c.us', '');
 
-      // Format for API response
-      const formatted = {
-        ...rawClient,
-        phoneNumber: rawClient.id.replace('@c.us', ''),
-        formattedPrice: `Rp ${rawClient.ticketPrice.toLocaleString('id-ID')}`
-      };
-
-      expect(formatted.phoneNumber).toBe('628123456789');
-      expect(formatted.formattedPrice).toContain('150');
+      expect(formatted).toBe('628123456789');
     });
 
+    test('should format price with Indonesian locale', () => {
+      const price = 150000;
+      const formatted = `Rp ${price.toLocaleString('id-ID')}`;
+
+      expect(formatted).toContain('150');
+    });
+
+    test('should handle null price gracefully', () => {
+      const price = null;
+      const formatted = price ? `Rp ${price.toLocaleString('id-ID')}` : 'N/A';
+
+      expect(formatted).toBe('N/A');
+    });
+  });
+
+  describe('Client Filtering', () => {
     test('should filter clients by deal status', () => {
       const clients = [
         { id: '1', dealStatus: 'prospect' },
@@ -43,6 +44,21 @@ describe('CRM Service', () => {
       expect(deals.every(c => c.dealStatus === 'deal')).toBe(true);
     });
 
+    test('should filter clients by ticket price range', () => {
+      const clients = [
+        { id: '1', ticketPrice: 50000 },
+        { id: '2', ticketPrice: 150000 },
+        { id: '3', ticketPrice: 250000 }
+      ];
+
+      const filtered = clients.filter(c => c.ticketPrice >= 100000 && c.ticketPrice <= 200000);
+
+      expect(filtered).toHaveLength(1);
+      expect(filtered[0].id).toBe('2');
+    });
+  });
+
+  describe('Client Sorting', () => {
     test('should sort clients by updated date', () => {
       const clients = [
         { id: '1', updatedAt: new Date('2025-01-01') },
@@ -50,169 +66,211 @@ describe('CRM Service', () => {
         { id: '3', updatedAt: new Date('2025-01-10') }
       ];
 
-      const sorted = clients.sort((a, b) => b.updatedAt - a.updatedAt);
+      const sorted = [...clients].sort((a, b) => b.updatedAt - a.updatedAt);
 
-      expect(sorted[0].id).toBe('2'); // Most recent first
-      expect(sorted[2].id).toBe('1'); // Oldest last
+      expect(sorted[0].id).toBe('2');
+      expect(sorted[1].id).toBe('3');
+      expect(sorted[2].id).toBe('1');
+    });
+
+    test('should sort clients by name alphabetically', () => {
+      const clients = [
+        { id: '1', nama: 'Charlie' },
+        { id: '2', nama: 'Alice' },
+        { id: '3', nama: 'Bob' }
+      ];
+
+      const sorted = [...clients].sort((a, b) => a.nama.localeCompare(b.nama));
+
+      expect(sorted[0].nama).toBe('Alice');
+      expect(sorted[1].nama).toBe('Bob');
+      expect(sorted[2].nama).toBe('Charlie');
     });
   });
 
-  describe('Statistics Calculation', () => {
-    test('should calculate total clients', () => {
-      const clients = new Array(25);
-      expect(clients.length).toBe(25);
+  describe('Text Processing', () => {
+    test('should truncate long text with ellipsis', () => {
+      const longText = 'a'.repeat(200);
+      const maxLength = 50;
+
+      const truncated = longText.length > maxLength
+        ? longText.substring(0, maxLength) + '...'
+        : longText;
+
+      expect(truncated.length).toBeLessThanOrEqual(maxLength + 3);
+      expect(truncated.endsWith('...')).toBe(true);
     });
 
+    test('should not truncate short text', () => {
+      const shortText = 'Hello World';
+      const maxLength = 50;
+
+      const result = shortText.length > maxLength
+        ? shortText.substring(0, maxLength) + '...'
+        : shortText;
+
+      expect(result).toBe('Hello World');
+      expect(result.endsWith('...')).toBe(false);
+    });
+  });
+
+  describe('Date Formatting', () => {
+    test('should format date range', () => {
+      const startDate = new Date('2025-01-01');
+      const endDate = new Date('2025-01-10');
+
+      const formatted = `${startDate.toLocaleDateString('id-ID')} - ${endDate.toLocaleDateString('id-ID')}`;
+
+      expect(formatted).toContain('2025');
+      expect(formatted).toContain('-');
+    });
+
+    test('should handle same start and end date', () => {
+      const date = new Date('2025-01-01');
+
+      const formatted = date.toLocaleDateString('id-ID');
+
+      expect(formatted).toContain('2025');
+    });
+  });
+
+  describe('Conversation Grouping', () => {
+    test('should group conversations by date', () => {
+      const conversations = [
+        { timestamp: new Date('2025-01-01'), message: 'Hello' },
+        { timestamp: new Date('2025-01-01'), message: 'Hi' },
+        { timestamp: new Date('2025-01-02'), message: 'Good morning' }
+      ];
+
+      const grouped = conversations.reduce((acc, conv) => {
+        const dateKey = conv.timestamp.toDateString();
+        if (!acc[dateKey]) acc[dateKey] = [];
+        acc[dateKey].push(conv);
+        return acc;
+      }, {});
+
+      expect(Object.keys(grouped)).toHaveLength(2);
+      expect(grouped[new Date('2025-01-01').toDateString()]).toHaveLength(2);
+    });
+  });
+
+  describe('Statistics Calculations', () => {
     test('should calculate conversion rate', () => {
       const totalClients = 100;
-      const deals = 25;
-      const conversionRate = (deals / totalClients) * 100;
+      const dealClients = 25;
+
+      const conversionRate = (dealClients / totalClients) * 100;
 
       expect(conversionRate).toBe(25);
     });
 
-    test('should group clients by deal status', () => {
+    test('should handle zero clients', () => {
+      const totalClients = 0;
+      const dealClients = 0;
+
+      const conversionRate = totalClients > 0 ? (dealClients / totalClients) * 100 : 0;
+
+      expect(conversionRate).toBe(0);
+    });
+
+    test('should calculate average ticket price', () => {
       const clients = [
-        { dealStatus: 'prospect' },
-        { dealStatus: 'prospect' },
-        { dealStatus: 'deal' },
-        { dealStatus: 'negotiating' },
-        { dealStatus: 'deal' },
-        { dealStatus: 'lost' }
+        { ticketPrice: 100000 },
+        { ticketPrice: 200000 },
+        { ticketPrice: 300000 }
       ];
 
-      const grouped = clients.reduce((acc, client) => {
-        acc[client.dealStatus] = (acc[client.dealStatus] || 0) + 1;
-        return acc;
-      }, {});
+      const total = clients.reduce((sum, c) => sum + c.ticketPrice, 0);
+      const average = total / clients.length;
 
-      expect(grouped.prospect).toBe(2);
-      expect(grouped.deal).toBe(2);
-      expect(grouped.negotiating).toBe(1);
-      expect(grouped.lost).toBe(1);
+      expect(average).toBe(200000);
     });
   });
 
-  describe('Client Update', () => {
-    test('should validate update data', () => {
-      const updateData = {
-        nama: 'Updated Name',
-        dealStatus: 'deal',
-        notes: 'Client confirmed'
-      };
-
-      const validFields = ['nama', 'instansi', 'event', 'dealStatus', 'notes', 'ticketPrice', 'capacity'];
-      const isValid = Object.keys(updateData).every(key => validFields.includes(key));
+  describe('Data Validation', () => {
+    test('should validate WhatsApp ID format', () => {
+      const validId = '628123456789@c.us';
+      const isValid = /^628\d{8,11}@c\.us$/.test(validId);
 
       expect(isValid).toBe(true);
     });
 
-    test('should reject invalid deal status', () => {
-      const validStatuses = ['prospect', 'negotiating', 'deal', 'lost'];
-      const testStatus = 'invalid_status';
-
-      const isValid = validStatuses.includes(testStatus);
+    test('should reject invalid WhatsApp ID', () => {
+      const invalidId = '123@c.us';
+      const isValid = /^628\d{8,11}@c\.us$/.test(invalidId);
 
       expect(isValid).toBe(false);
     });
 
-    test('should sanitize input data', () => {
-      const input = {
-        nama: '  John Doe  ',
-        instansi: 'Acme Corp   '
-      };
+    test('should validate email format', () => {
+      const validEmail = 'test@example.com';
+      const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(validEmail);
 
-      const sanitized = {
-        nama: input.nama.trim(),
-        instansi: input.instansi.trim()
-      };
-
-      expect(sanitized.nama).toBe('John Doe');
-      expect(sanitized.instansi).toBe('Acme Corp');
+      expect(isValid).toBe(true);
     });
   });
 
-  describe('Search and Filtering', () => {
-    test('should search by keyword in name or company', () => {
+  describe('Search Functionality', () => {
+    test('should search clients by name (case insensitive)', () => {
       const clients = [
         { nama: 'John Doe', instansi: 'Acme Corp' },
-        { nama: 'Jane Smith', instansi: 'Tech Events' },
-        { nama: 'Bob Johnson', instansi: 'Acme Industries' }
+        { nama: 'Jane Smith', instansi: 'Tech Inc' },
+        { nama: 'Bob Johnson', instansi: 'Startup LLC' }
       ];
 
-      const keyword = 'Acme';
+      const searchTerm = 'john';
       const results = clients.filter(c =>
-        c.nama.toLowerCase().includes(keyword.toLowerCase()) ||
-        c.instansi.toLowerCase().includes(keyword.toLowerCase())
+        c.nama.toLowerCase().includes(searchTerm.toLowerCase())
       );
 
       expect(results).toHaveLength(2);
     });
 
-    test('should filter by price range', () => {
+    test('should search clients by organization', () => {
       const clients = [
-        { ticketPrice: 50000 },
-        { ticketPrice: 150000 },
-        { ticketPrice: 250000 },
-        { ticketPrice: 300000 }
+        { nama: 'John Doe', instansi: 'Acme Corp' },
+        { nama: 'Jane Smith', instansi: 'Tech Inc' },
+        { nama: 'Bob Johnson', instansi: 'Acme Corp' }
       ];
 
-      const minPrice = 100000;
-      const maxPrice = 250000;
-
-      const filtered = clients.filter(c =>
-        c.ticketPrice && c.ticketPrice >= minPrice && c.ticketPrice <= maxPrice
+      const searchTerm = 'Acme';
+      const results = clients.filter(c =>
+        c.instansi && c.instansi.includes(searchTerm)
       );
 
-      expect(filtered).toHaveLength(2);
+      expect(results).toHaveLength(2);
     });
   });
 
-  describe('Data Validation', () => {
-    test('should validate WhatsApp ID format for new client', () => {
-      const clientId = '628123456789@c.us';
-      const pattern = /^628\d{8,11}@c\.us$/;
+  describe('Status Management', () => {
+    test('should map status codes to display names', () => {
+      const statusMap = {
+        'prospect': 'Prospek',
+        'negotiating': 'Negosiasi',
+        'deal': 'Deal',
+        'lost': 'Hilang'
+      };
 
-      expect(pattern.test(clientId)).toBe(true);
+      expect(statusMap['prospect']).toBe('Prospek');
+      expect(statusMap['deal']).toBe('Deal');
     });
 
-    test('should validate ticket price is positive number', () => {
-      const validPrice = 150000;
-      const invalidPrice = -1000;
-
-      expect(validPrice > 0).toBe(true);
-      expect(invalidPrice > 0).toBe(false);
-    });
-
-    test('should validate capacity is positive integer', () => {
-      const validCapacity = 500;
-      const invalidCapacity = -10;
-
-      expect(Number.isInteger(validCapacity) && validCapacity > 0).toBe(true);
-      expect(Number.isInteger(invalidCapacity) && invalidCapacity > 0).toBe(false);
-    });
-  });
-
-  describe('Conversation History', () => {
-    test('should retrieve conversations for client', () => {
-      const conversations = [
-        { userId: 'user1@c.us', message: 'Hello' },
-        { userId: 'user2@c.us', message: 'Hi' },
-        { userId: 'user1@c.us', message: 'How are you?' }
+    test('should count clients by status', () => {
+      const clients = [
+        { dealStatus: 'prospect' },
+        { dealStatus: 'deal' },
+        { dealStatus: 'prospect' },
+        { dealStatus: 'negotiating' }
       ];
 
-      const userId = 'user1@c.us';
-      const userConversations = conversations.filter(c => c.userId === userId);
+      const counts = clients.reduce((acc, c) => {
+        acc[c.dealStatus] = (acc[c.dealStatus] || 0) + 1;
+        return acc;
+      }, {});
 
-      expect(userConversations).toHaveLength(2);
-    });
-
-    test('should limit conversation history', () => {
-      const conversations = Array.from({ length: 50 }, (_, i) => ({ id: i }));
-      const limit = 20;
-      const limited = conversations.slice(-limit);
-
-      expect(limited).toHaveLength(20);
+      expect(counts['prospect']).toBe(2);
+      expect(counts['deal']).toBe(1);
+      expect(counts['negotiating']).toBe(1);
     });
   });
 });

@@ -546,4 +546,156 @@ describe('Database Service', () => {
       });
     });
   });
+
+  describe('Error Handling Coverage', () => {
+    test('getUserWithHistory should handle database errors', async () => {
+      mockPrisma.user.findUnique.mockRejectedValueOnce(new Error('DB Error'));
+
+      await expect(dbService.getUserWithHistory('test@c.us')).rejects.toThrow('DB Error');
+    });
+
+    test('saveConversation should handle database errors', async () => {
+      mockPrisma.conversation.create.mockRejectedValueOnce(new Error('Save Error'));
+
+      await expect(dbService.saveConversation('test@c.us', 'msg', 'response')).rejects.toThrow();
+    });
+
+    test('getConversationHistory should handle database errors', async () => {
+      mockPrisma.conversation.findMany.mockRejectedValueOnce(new Error('Fetch Error'));
+
+      await expect(dbService.getConversationHistory('test@c.us')).rejects.toThrow();
+    });
+
+    test('getOrCreateSession should handle database errors', async () => {
+      mockPrisma.session.findUnique.mockRejectedValueOnce(new Error('Session Error'));
+
+      await expect(dbService.getOrCreateSession('test@c.us')).rejects.toThrow();
+    });
+
+    test('updateSession should handle database errors', async () => {
+      mockPrisma.session.upsert.mockRejectedValueOnce(new Error('Update Error'));
+
+      await expect(dbService.updateSession('test@c.us', {})).rejects.toThrow();
+    });
+
+    test('deleteSession should handle database errors', async () => {
+      mockPrisma.session.delete.mockRejectedValueOnce(new Error('Delete Error'));
+
+      await expect(dbService.deleteSession('test@c.us')).rejects.toThrow();
+    });
+
+    test('cleanupOldSessions should handle database errors', async () => {
+      mockPrisma.session.findMany.mockRejectedValueOnce(new Error('Cleanup Error'));
+
+      await expect(dbService.cleanupOldSessions(7)).rejects.toThrow();
+    });
+
+    test('getAllUsers should handle database errors', async () => {
+      mockPrisma.user.findMany.mockRejectedValueOnce(new Error('Fetch Error'));
+
+      const result = await dbService.getAllUsers();
+      expect(result).toEqual([]);
+    });
+
+    test('getClientsByStatus should handle database errors', async () => {
+      mockPrisma.user.findMany.mockRejectedValueOnce(new Error('Status Error'));
+
+      const result = await dbService.getClientsByStatus('deal');
+      expect(result).toEqual([]);
+    });
+
+    test('searchClients should handle database errors', async () => {
+      mockPrisma.user.findMany.mockRejectedValueOnce(new Error('Search Error'));
+
+      const result = await dbService.searchClients('test');
+      expect(result).toEqual([]);
+    });
+
+    test('getClientsByPriceRange should handle database errors', async () => {
+      mockPrisma.user.findMany.mockRejectedValueOnce(new Error('Price Error'));
+
+      const result = await dbService.getClientsByPriceRange(100000, 200000);
+      expect(result).toEqual([]);
+    });
+
+    test('getAllEvents should handle database errors', async () => {
+      mockPrisma.user.findMany.mockRejectedValueOnce(new Error('Events Error'));
+
+      const result = await dbService.getAllEvents();
+      expect(result).toEqual([]);
+    });
+
+    test('getActiveSessions should handle database errors', async () => {
+      mockPrisma.session.findMany.mockRejectedValueOnce(new Error('Active Error'));
+
+      const result = await dbService.getActiveSessions(24);
+      expect(result).toEqual([]);
+    });
+
+    test('getTodayActivity should handle database errors', async () => {
+      mockPrisma.user.count.mockRejectedValueOnce(new Error('Activity Error'));
+
+      const result = await dbService.getTodayActivity();
+      expect(result).toEqual({ newUsers: 0, totalConversations: 0 });
+    });
+
+    test('getOverallStats should handle database errors', async () => {
+      mockPrisma.user.count.mockRejectedValueOnce(new Error('Stats Error'));
+
+      const result = await dbService.getOverallStats();
+      expect(result).toBeNull();
+    });
+
+    test('findUserByPhoneOrName should handle database errors', async () => {
+      mockPrisma.user.findUnique.mockRejectedValueOnce(new Error('Find Error'));
+
+      const result = await dbService.findUserByPhoneOrName('test');
+      expect(result).toBeNull();
+    });
+
+    test('disconnect should handle database errors gracefully', async () => {
+      mockPrisma.$disconnect.mockRejectedValueOnce(new Error('Disconnect Error'));
+
+      await expect(dbService.disconnect()).rejects.toThrow();
+    });
+
+    test('getSessionContext should handle database errors', async () => {
+      mockPrisma.session.findUnique.mockRejectedValueOnce(new Error('Session Error'));
+
+      const result = await dbService.getSessionContext('test@c.us');
+      expect(result).toEqual({});
+    });
+
+    test('getSessionContext should return session context successfully', async () => {
+      const result = await dbService.getSessionContext('628123456789@c.us');
+      expect(result).toBeDefined();
+    });
+
+    test('deleteSession should handle P2025 error (record not found)', async () => {
+      const error = new Error('Record not found');
+      error.code = 'P2025';
+      mockPrisma.session.delete.mockRejectedValueOnce(error);
+
+      // Should not throw, just log
+      await expect(dbService.deleteSession('nonexistent@c.us')).resolves.toBeUndefined();
+    });
+
+    test('getAllUsers should support hasTicketPrice filter', async () => {
+      const result = await dbService.getAllUsers({ hasTicketPrice: true });
+
+      expect(mockPrisma.user.findMany).toHaveBeenCalledWith({
+        where: { ticketPrice: { not: null } },
+        orderBy: { createdAt: 'desc' }
+      });
+    });
+
+    test('updateSession should log success message', async () => {
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await dbService.updateSession('test@c.us', { test: 'data' });
+
+      expect(consoleSpy).toHaveBeenCalledWith('[DB] Updated session for user test@c.us');
+      consoleSpy.mockRestore();
+    });
+  });
 });

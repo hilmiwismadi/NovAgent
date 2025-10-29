@@ -162,11 +162,17 @@ export function getPricing(ticketPrice, capacity, scheme = 'both') {
   const result = {};
 
   if (scheme === 'percentage' || scheme === 'both') {
-    result.percentage = novatixContext.pricing.percentage.tiers[capacityTier].ranges[priceRange];
+    result.percentage = {
+      ...novatixContext.pricing.percentage.tiers[capacityTier].ranges[priceRange],
+      capacity: novatixContext.pricing.percentage.tiers[capacityTier].capacity
+    };
   }
 
   if (scheme === 'flat' || scheme === 'both') {
-    result.flat = novatixContext.pricing.flat.tiers[capacityTier].ranges[priceRange];
+    result.flat = {
+      ...novatixContext.pricing.flat.tiers[capacityTier].ranges[priceRange],
+      capacity: novatixContext.pricing.flat.tiers[capacityTier].capacity
+    };
   }
 
   return result;

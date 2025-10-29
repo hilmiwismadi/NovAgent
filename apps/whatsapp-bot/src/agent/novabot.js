@@ -527,19 +527,24 @@ INSTRUKSI WAJIB:
   extractContextFromMessage(message) {
     const lowerMessage = message.toLowerCase();
 
-    // Extract name (nama saya X, saya X, perkenalkan nama saya X)
+    // Extract name (nama saya X, nama gue X, namaku X, perkenalkan X)
+    // IMPORTANT: Only extract if we don't have a name yet
     if (!this.userContext.nama) {
       const namePatterns = [
-        /(?:nama saya|saya|perkenalkan|perkenalkan nama saya|namaku)\s+(?:adalah\s+)?([A-Za-z\s]+?)(?:\s|$|,|\.)/i,
-        /^([A-Za-z]+)\s+(?:dari|here|disini)/i
+        // Explicit name introduction patterns
+        /(?:nama saya|nama gue|nama aku|namaku|nama ku)\s+(?:adalah\s+)?([A-Za-z\s]+?)(?:\s+dari|\s+nih|\s|$|,|\.)/i,
+        /(?:perkenalkan|perkenalkan nama saya|perkenalkan aku)\s+([A-Za-z\s]+?)(?:\s+dari|\s|$|,|\.)/i,
+        /(?:saya|aku|gue|gw)\s+([A-Za-z]+)(?:\s+dari|\s+nih)(?:\s|$)/i,
+        // Pattern: "halo <name> disini" or "<name> dari <org>"
+        /^(?:halo|hai)?\s*([A-Za-z]+)\s+(?:dari|disini|here)/i
       ];
 
       for (const pattern of namePatterns) {
         const nameMatch = message.match(pattern);
         if (nameMatch && nameMatch[1]) {
           const nama = nameMatch[1].trim();
-          // Filter out common words
-          const excludeWords = ['mau', 'ingin', 'butuh', 'perlu', 'tanya', 'adalah', 'dari', 'di', 'ke'];
+          // Filter out common words that might be mistakenly captured
+          const excludeWords = ['mau', 'ingin', 'butuh', 'perlu', 'tanya', 'adalah', 'dari', 'di', 'ke', 'bisa', 'pusing', 'senang'];
           if (nama.length > 2 && !excludeWords.includes(nama.toLowerCase())) {
             this.userContext.nama = nama;
             console.log(`[DEBUG] Extracted name: ${nama}`);
@@ -580,6 +585,7 @@ INSTRUKSI WAJIB:
     // Extract event name
     if (!this.userContext.eventName) {
       const eventPatterns = [
+        // Explicit event patterns with keywords
         /(?:event|acara|kegiatan)\s+(?:bernama|dengan nama|namanya)?\s*([A-Za-z0-9\s]+?)(?:\s+dengan|\s+harga|\s+untuk|\s+yang|$|,|\.)/i,
         /(?:mengadakan|menyelenggarakan|membuat)\s+(?:event|acara)?\s*([A-Za-z0-9\s]+?)(?:\s+dengan|\s+harga|\s+untuk|\s+yang|$|,|\.)/i,
         /(?:untuk|buat)\s+(?:event|acara)\s+([A-Za-z0-9\s]+?)(?:\s+dengan|\s+harga|\s+untuk|\s+yang|$|,|\.)/i
@@ -600,6 +606,24 @@ INSTRUKSI WAJIB:
             this.userContext.eventName = eventName;
             console.log(`[DEBUG] Extracted event name: ${eventName}`);
             break;
+          }
+        }
+      }
+
+      // FALLBACK: If bot just asked about event and user responds with just a name
+      // Detect standalone event names (capitalized words/numbers suggesting an event title)
+      // Only if message is short (< 50 chars) and we have name+org already
+      if (!this.userContext.eventName && this.userContext.nama && this.userContext.instansi) {
+        const trimmed = message.trim();
+        // Check if message looks like an event name (has capital letters or numbers, not too long)
+        if (trimmed.length < 50 && trimmed.length > 3 && /[A-Z0-9]/.test(trimmed)) {
+          // Exclude common words that might be mistaken as event names
+          const excludePhrases = ['oke', 'baik', 'boleh', 'ya', 'tidak', 'nggak', 'belum', 'sudah', 'siap', 'ok'];
+          const isExcluded = excludePhrases.some(phrase => lowerMessage.includes(phrase));
+
+          if (!isExcluded) {
+            this.userContext.eventName = trimmed;
+            console.log(`[DEBUG] Extracted event name (fallback): ${trimmed}`);
           }
         }
       }
@@ -668,6 +692,21 @@ INSTRUKSI WAJIB:
             this.userContext.capacity = capacity;
             break;
           }
+        }
+      }
+    }
+
+    // FALLBACK: Extract standalone numbers as capacity after event name is known
+    // This handles responses like "1500" when bot asks about capacity
+    if (!this.userContext.capacity && this.userContext.eventName) {
+      const standaloneNumberMatch = message.match(/^(\d+[.,]?\d*)$/);
+      if (standaloneNumberMatch) {
+        const capacity = parseInt(standaloneNumberMatch[1].replace(/[.,]/g, ''));
+
+        // Reasonable capacity range and different from ticket price
+        if (capacity >= 10 && capacity <= 100000 && capacity !== this.userContext.ticketPrice) {
+          this.userContext.capacity = capacity;
+          console.log(`[DEBUG] Extracted capacity (fallback): ${capacity}`);
         }
       }
     }

@@ -536,8 +536,8 @@ export default function Dashboard() {
                     cursor: loadingSummary || conversations.length === 0 ? 'not-allowed' : 'pointer',
                     fontSize: '14px',
                     opacity: loadingSummary || conversations.length === 0 ? 0.6 : 1,
-                    minWidth: '150px',
-                    whiteSpace: 'nowrap'
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0
                   }}
                 >
                   {loadingSummary ? '⏳ Loading...' : '📋 Summary'}
@@ -548,33 +548,70 @@ export default function Dashboard() {
 
             {conversationSummary && (
               <div style={{
-                padding: '15px',
+                position: 'absolute',
+                top: '80px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: '90%',
+                maxWidth: '800px',
+                maxHeight: '70vh',
                 backgroundColor: '#f0f7ff',
-                border: '1px solid #4CAF50',
-                borderRadius: '8px',
-                margin: '10px',
-                marginTop: '0'
+                border: '2px solid #4CAF50',
+                borderRadius: '12px',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+                zIndex: 1000,
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column'
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '10px' }}>
-                  <h3 style={{ margin: 0, color: '#2c5282' }}>📋 Conversation Summary</h3>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '15px 20px',
+                  borderBottom: '2px solid #4CAF50',
+                  backgroundColor: '#e3f2fd'
+                }}>
+                  <h3 style={{ margin: 0, color: '#2c5282', fontSize: '18px' }}>📋 Conversation Summary</h3>
                   <button
                     onClick={() => setConversationSummary(null)}
                     style={{
-                      background: 'none',
+                      background: '#f44336',
                       border: 'none',
-                      fontSize: '20px',
+                      fontSize: '16px',
                       cursor: 'pointer',
-                      color: '#666'
+                      color: 'white',
+                      borderRadius: '50%',
+                      width: '32px',
+                      height: '32px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 'bold'
                     }}
                   >
                     ✕
                   </button>
                 </div>
-                <div style={{ whiteSpace: 'pre-wrap', color: '#1a365d', lineHeight: '1.6' }}>
+                <div style={{
+                  padding: '20px',
+                  overflow: 'auto',
+                  flex: 1,
+                  whiteSpace: 'pre-wrap',
+                  color: '#1a365d',
+                  lineHeight: '1.6',
+                  wordBreak: 'break-word'
+                }}>
                   {conversationSummary.summary}
                 </div>
                 {conversationSummary.totalMessages && (
-                  <div style={{ marginTop: '10px', fontSize: '12px', color: '#718096' }}>
+                  <div style={{
+                    padding: '12px 20px',
+                    fontSize: '12px',
+                    color: '#718096',
+                    borderTop: '1px solid #ccc',
+                    backgroundColor: '#f0f7ff'
+                  }}>
                     📊 Total messages: {conversationSummary.totalMessages} |
                     Last updated: {new Date(conversationSummary.timestamp).toLocaleString('id-ID')}
                   </div>

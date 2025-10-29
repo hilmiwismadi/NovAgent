@@ -223,6 +223,7 @@ export class WhatsAppClient {
     this.queueProcessorInterval = setInterval(async () => {
       await this.processMessageQueue();
       await this.processCommands();
+      await this.processResetSignals();
     }, 5000); // Check every 5 seconds
   }
 
@@ -329,6 +330,53 @@ export class WhatsAppClient {
     if (this.sessions.has(contactId)) {
       console.log(`[WhatsApp] Resetting session for ${contactId}`);
       await this.sessions.get(contactId).resetConversation();
+    }
+  }
+
+  /**
+   * Process reset signals from dashboard (client deletion)
+   */
+  async processResetSignals() {
+    try {
+      // Check for reset signal files
+      if (!fs.existsSync(this.queueDir)) {
+        return;
+      }
+
+      const files = fs.readdirSync(this.queueDir);
+      const resetFiles = files.filter(f => f.startsWith('reset-') && f.endsWith('.json'));
+
+      for (const file of resetFiles) {
+        try {
+          const filePath = path.join(this.queueDir, file);
+          const signalData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+
+          if (signalData.action === 'RESET_SESSION' && signalData.userId) {
+            const userId = signalData.userId;
+            console.log(`[WhatsApp] Processing reset signal for ${userId}`);
+
+            // Clear in-memory session
+            if (this.sessions.has(userId)) {
+              this.sessions.delete(userId);
+              console.log(`[WhatsApp] Cleared in-memory session for ${userId}`);
+            }
+
+            // Delete the signal file
+            fs.unlinkSync(filePath);
+            console.log(`[WhatsApp] Processed and removed reset signal: ${file}`);
+          }
+        } catch (fileError) {
+          console.error(`[WhatsApp] Error processing reset signal ${file}:`, fileError.message);
+          // Try to delete corrupted file
+          try {
+            fs.unlinkSync(path.join(this.queueDir, file));
+          } catch (deleteError) {
+            // Ignore
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[WhatsApp] Error in processResetSignals:', error.message);
     }
   }
 
@@ -824,6 +872,10 @@ export class WhatsAppClient {
       }
 
       console.log(`\n[WhatsApp] Message from ${contactName} (${contactId}): ${messageText}`);
+
+      // IMPORTANT: Check for reset signals BEFORE processing message
+      // This prevents race condition where message creates session before reset is processed
+      await this.processResetSignals();
 
       // Check if sender is internal team
       const isInternal = this.isInternalTeam(contactId);

@@ -9,7 +9,7 @@ export class IntentDetector {
     this.intents = {
       // Stats & Analytics
       stats: {
-        keywords: ['statistik', 'stats', 'overview', 'ringkasan', 'rangkuman', 'total'],
+        keywords: ['statistik', 'stats', 'overview', 'ringkasan', 'rangkuman', 'total', 'conversion'],
         patterns: [
           /berapa (jumlah )?client/i,
           /ada berapa client/i,
@@ -17,6 +17,7 @@ export class IntentDetector {
           /jumlah client/i,
           /berapa (jumlah )?user/i,
           /conversion rate/i,
+          /gimana conversion rate/i,
           /performa/i,
           /kinerja/i
         ]
@@ -179,7 +180,9 @@ export class IntentDetector {
    * @returns {Object} { intent: string, confidence: number, entities: Object }
    */
   detectIntent(message) {
-    const lowerMessage = message.toLowerCase().trim();
+    // Normalize whitespace: replace multiple spaces with single space
+    message = message.replace(/\s+/g, ' ').trim();
+    const lowerMessage = message.toLowerCase();
 
     // Check if message is a slash command (skip NLU)
     if (lowerMessage.startsWith('/')) {
@@ -198,7 +201,7 @@ export class IntentDetector {
             bestMatch = {
               intent,
               confidence,
-              entities: this.extractEntities(intent, match, lowerMessage)
+              entities: this.extractEntities(intent, match, message)
             };
           }
         }
@@ -215,7 +218,7 @@ export class IntentDetector {
               bestMatch = {
                 intent,
                 confidence,
-                entities: this.extractEntities(intent, null, lowerMessage)
+                entities: this.extractEntities(intent, null, message)
               };
             }
           }
@@ -250,8 +253,9 @@ export class IntentDetector {
   /**
    * Extract entities from message based on intent
    */
-  extractEntities(intent, match, message) {
+  extractEntities(intent, match, originalMessage) {
     const entities = {};
+    const message = originalMessage.replace(/\s+/g, ' ').trim();
 
     switch (intent) {
       case 'search':
@@ -261,8 +265,9 @@ export class IntentDetector {
           /cari (client )?(.+)/i,
           /search (client )?(.+)/i,
           /info (tentang |client )?(.+)/i,
-          /detail (tentang |client )?(.+)/i,
-          /data (dari |client )?(.+)/i
+          /detail (client )?(.+)/i,
+          /data (dari |client )?(.+)/i,
+          /siapa itu (.+)/i
         ];
 
         for (const pattern of searchPatterns) {
@@ -302,7 +307,8 @@ export class IntentDetector {
         const historyPatterns = [
           /riwayat (chat |percakapan )?(dengan |client )?(.+)/i,
           /history (dari |client )?(.+)/i,
-          /percakapan (dengan |client )?(.+)/i
+          /percakapan (dengan |client )?(.+)/i,
+          /chat (dengan |dari |client )?(.+)/i
         ];
 
         for (const pattern of historyPatterns) {

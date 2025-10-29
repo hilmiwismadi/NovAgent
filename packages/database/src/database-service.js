@@ -17,6 +17,10 @@ export class DatabaseService {
    * Get or create user by WhatsApp ID
    */
   async getOrCreateUser(userId) {
+    if (!userId || userId === null || userId === undefined) {
+      throw new Error('userId is required');
+    }
+
     try {
       let user = await this.prisma.user.findUnique({
         where: { id: userId }
@@ -171,7 +175,7 @@ export class DatabaseService {
         session = await this.prisma.session.create({
           data: {
             userId,
-            context: {},
+            context: JSON.stringify({}),
             conversationCount: 0
           }
         });
@@ -263,6 +267,16 @@ export class DatabaseService {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - daysInactive);
 
+      // First find the sessions to be deleted
+      const sessionsToDelete = await this.prisma.session.findMany({
+        where: {
+          lastActive: {
+            lt: cutoffDate
+          }
+        }
+      });
+
+      // Then delete them
       const result = await this.prisma.session.deleteMany({
         where: {
           lastActive: {
@@ -304,20 +318,22 @@ export class DatabaseService {
         }
       });
 
-      if (!user) return null;
+      if (!user) {
+        throw new Error('User not found');
+      }
 
       return {
         userId: user.id,
         nama: user.nama,
         instansi: user.instansi,
-        totalConversations: user._count.conversations,
+        conversationCount: user._count.conversations,
         lastConversation: user.conversations[0]?.timestamp,
         dealStatus: user.dealStatus,
         createdAt: user.createdAt
       };
     } catch (error) {
       console.error('[DB] Error in getUserStats:', error);
-      return null;
+      throw error;
     }
   }
 
@@ -338,11 +354,6 @@ export class DatabaseService {
 
       const users = await this.prisma.user.findMany({
         where,
-        include: {
-          _count: {
-            select: { conversations: true }
-          }
-        },
         orderBy: { createdAt: 'desc' }
       });
 
@@ -364,17 +375,7 @@ export class DatabaseService {
     try {
       const users = await this.prisma.user.findMany({
         where: { dealStatus },
-        include: {
-          _count: {
-            select: { conversations: true }
-          },
-          conversations: {
-            orderBy: { timestamp: 'desc' },
-            take: 1,
-            select: { timestamp: true }
-          }
-        },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { updatedAt: 'desc' }
       });
 
       return users;
@@ -389,6 +390,11 @@ export class DatabaseService {
    */
   async searchClients(keyword) {
     try {
+      // Return empty array if no keyword provided
+      if (!keyword || keyword.trim() === '') {
+        return [];
+      }
+
       const users = await this.prisma.user.findMany({
         where: {
           OR: [
@@ -510,7 +516,7 @@ export class DatabaseService {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
 
-      const [newUsers, newConversations] = await Promise.all([
+      const [newUsers, totalConversations] = await Promise.all([
         this.prisma.user.count({
           where: {
             createdAt: {
@@ -529,11 +535,11 @@ export class DatabaseService {
 
       return {
         newUsers,
-        newConversations
+        totalConversations
       };
     } catch (error) {
       console.error('[DB] Error in getTodayActivity:', error);
-      return { newUsers: 0, newConversations: 0 };
+      return { newUsers: 0, totalConversations: 0 };
     }
   }
 
@@ -570,7 +576,7 @@ export class DatabaseService {
           lost: lostCount
         },
         usersWithPricing,
-        conversionRate: totalUsers > 0 ? ((dealCount / totalUsers) * 100).toFixed(2) : 0
+        conversionRate: totalUsers > 0 ? parseFloat(((dealCount / totalUsers) * 100).toFixed(2)) : 0
       };
     } catch (error) {
       console.error('[DB] Error in getOverallStats:', error);

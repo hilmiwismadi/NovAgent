@@ -1,4 +1,6 @@
 import { PrismaClient } from '@prisma/client';
+import fs from 'fs';
+import path from 'path';
 
 const prisma = new PrismaClient();
 
@@ -157,7 +159,7 @@ class CRMService {
 
       if (conversations.length === 0) {
         return {
-          summary: 'No conversation history available.',
+          summary: 'Tidak ada riwayat percakapan.',
           totalMessages: 0,
           timestamp: new Date().toISOString()
         };
@@ -176,74 +178,88 @@ class CRMService {
         }
       });
 
-      // Build comprehensive summary
-      let summary = '📋 CONVERSATION CONTEXT SUMMARY\n\n';
+      // Prepare conversation data for LLM
+      const conversationText = conversations
+        .map((conv, idx) => {
+          const timestamp = new Date(conv.timestamp).toLocaleString('id-ID', {
+            day: 'numeric',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+          let text = `[${timestamp}]`;
+          if (conv.userMessage && conv.userMessage.trim()) {
+            text += `\nClient: ${conv.userMessage}`;
+          }
+          if (conv.agentResponse) {
+            const source = conv.metadata?.source === 'dashboard' ? 'Admin' : 'Bot';
+            text += `\n${source}: ${conv.agentResponse}`;
+          }
+          return text;
+        })
+        .join('\n\n');
 
-      // Client info
-      summary += '👤 CLIENT INFORMATION:\n';
-      summary += `   Name: ${user?.nama || 'N/A'}\n`;
-      summary += `   Organization: ${user?.instansi || 'N/A'}\n`;
-      summary += `   Event: ${user?.event || 'N/A'}\n`;
-      summary += `   Deal Status: ${user?.dealStatus || 'N/A'}\n`;
-      summary += `   Status: ${user?.status || 'N/A'}\n`;
-      if (user?.notes) {
-        summary += `   Notes: ${user.notes}\n`;
-      }
-      summary += '\n';
+      // Call LLM to generate intelligent summary
+      const { ChatGroq } = await import("@langchain/groq");
+      
+      const llm = new ChatGroq({
+        apiKey: process.env.GROQ_API_KEY,
+        model: "llama-3.3-70b-versatile",
+        temperature: 0.3,
+      });
 
-      // Conversation statistics
+      const summaryPrompt = `Kamu adalah asisten CRM yang menganalisis riwayat percakapan antara NovaTix (platform tiket event) dengan calon klien.
+
+Informasi Klien:
+- Nama: ${user?.nama || 'N/A'}
+- Organisasi: ${user?.instansi || 'N/A'}
+- Event: ${user?.event || 'N/A'}
+- Status Deal: ${user?.dealStatus || 'N/A'}
+- Status: ${user?.status || 'N/A'}
+
+Riwayat Percakapan:
+${conversationText}
+
+Buatkan ringkasan eksekutif yang ringkas dari percakapan ini dalam Bahasa Indonesia. Fokus pada:
+1. Poin-poin dan topik utama yang dibahas
+2. Kebutuhan dan requirement klien
+3. Status deal saat ini dan langkah selanjutnya
+4. Komitmen atau deadline penting
+5. Sentimen dan tingkat engagement secara keseluruhan
+
+Buatlah ringkasan yang profesional, ringkas (maksimal 200 kata), dan actionable. Gunakan bullet points jika perlu. HARUS dalam Bahasa Indonesia yang natural dan mudah dipahami.`;
+
+      const response = await llm.invoke(summaryPrompt);
+      const aiSummary = response.content;
+
+      // Build final formatted summary
       const userMessages = conversations.filter(c => c.userMessage && c.userMessage.trim() !== '').length;
       const botMessages = conversations.filter(c => c.agentResponse && c.metadata?.source !== 'dashboard').length;
       const adminMessages = conversations.filter(c => c.agentResponse && c.metadata?.source === 'dashboard').length;
 
-      summary += '📊 CONVERSATION STATISTICS:\n';
-      summary += `   Total messages: ${conversations.length}\n`;
-      summary += `   Client messages: ${userMessages}\n`;
-      summary += `   Bot responses: ${botMessages}\n`;
-      summary += `   Admin replies: ${adminMessages}\n`;
-      summary += `   Duration: ${this.formatDateRange(conversations[0].timestamp, conversations[conversations.length - 1].timestamp)}\n`;
+      let summary = '📋 Ringkasan Percakapan\n\n';
+      
+      // Add AI-generated summary
+      summary += '📝 Ringkasan Eksekutif\n';
+      summary += aiSummary + '\n\n';
+      
+      // Client info section
+      summary += '👤 Informasi Klien\n';
+      summary += `• Nama: ${user?.nama || 'N/A'}\n`;
+      summary += `• Organisasi: ${user?.instansi || 'N/A'}\n`;
+      summary += `• Event: ${user?.event || 'N/A'}\n`;
+      summary += `• Status Deal: ${user?.dealStatus || 'N/A'}\n`;
+      summary += `• Status: ${user?.status || 'N/A'}\n`;
+      if (user?.notes) {
+        summary += `• Catatan: ${user.notes}\n`;
+      }
       summary += '\n';
 
-      // Key topics and interactions
-      summary += '💬 CONVERSATION HIGHLIGHTS:\n\n';
-
-      // Group conversations into logical segments
-      const segments = this.groupConversationSegments(conversations);
-
-      segments.forEach((segment, index) => {
-        const date = new Date(segment.timestamp).toLocaleDateString('id-ID', {
-          day: 'numeric',
-          month: 'short',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        });
-
-        summary += `[${date}] `;
-
-        if (segment.userMessage && segment.userMessage.trim() !== '') {
-          summary += `Client: ${this.truncateText(segment.userMessage, 100)}\n`;
-        }
-
-        if (segment.agentResponse) {
-          const source = segment.metadata?.source === 'dashboard' ? 'Admin' : 'Bot';
-          summary += `         ${source}: ${this.truncateText(segment.agentResponse, 100)}\n`;
-        }
-
-        summary += '\n';
-      });
-
-      // Extract key information from context snapshots
-      const latestContext = conversations[conversations.length - 1].contextSnapshot;
-      if (latestContext) {
-        summary += '\n🔍 LATEST CONTEXT:\n';
-        if (latestContext.interests) {
-          summary += `   Topics discussed: ${latestContext.interests.join(', ')}\n`;
-        }
-        if (latestContext.lastTopic) {
-          summary += `   Last topic: ${latestContext.lastTopic}\n`;
-        }
-      }
+      // Statistics
+      summary += '📊 Statistik\n';
+      summary += `• Total pesan: ${conversations.length}\n`;
+      summary += `• Klien: ${userMessages} | Bot: ${botMessages} | Admin: ${adminMessages}\n`;
+      summary += `• Durasi: ${this.formatDateRange(conversations[0].timestamp, conversations[conversations.length - 1].timestamp)}\n`;
 
       return {
         summary: summary.trim(),
@@ -337,9 +353,9 @@ class CRMService {
    */
   async resetClientContext(userId) {
     try {
-      console.log(`[CRM Service] Deleting client and all data: ${userId}`);
+      console.log(`[CRM Service] Resetting client context: ${userId}`);
 
-      // Get client info before deletion
+      // Get client info before reset
       const client = await prisma.user.findUnique({
         where: { id: userId },
         select: {
@@ -356,27 +372,76 @@ class CRMService {
       }
 
       const conversationCount = client._count.conversations;
+      const oldName = client.nama;
+      const oldOrg = client.instansi;
 
-      // Delete all conversations first (foreign key constraint)
+      // Delete all conversations (clear history)
       await prisma.conversation.deleteMany({
         where: { userId: userId }
       });
 
-      // Delete the user record completely
-      await prisma.user.delete({
-        where: { id: userId }
+      // Delete session (to clear context)
+      await prisma.session.deleteMany({
+        where: { userId: userId }
       });
 
-      console.log(`[CRM Service] Client deleted: ${userId}, conversations: ${conversationCount}`);
+      // Clear user context fields but KEEP the user record
+      // This prevents the bot from recreating a fresh user and avoids data inconsistency
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          nama: null,
+          instansi: null,
+          event: null,
+          ticketPrice: null,
+          capacity: null,
+          pricingScheme: null,
+          notes: null,
+          // Keep dashboard CRM fields as they might be manually entered
+          // Clear calendar-related fields
+          meetingDate: null,
+          meetingCalendarId: null,
+          meetingNotes: null,
+          ticketSaleDate: null,
+          ticketSaleCalendarId: null,
+          ticketSaleNotes: null,
+          eventDayDate: null,
+          eventDayCalendarId: null,
+          eventDayVenue: null,
+          eventDayNotes: null,
+          remindersSent: null
+        }
+      });
+
+      // Signal WhatsApp bot to clear in-memory session
+      try {
+        const queueDir = path.resolve(process.cwd(), '.message-queue');
+        if (!fs.existsSync(queueDir)) {
+          fs.mkdirSync(queueDir, { recursive: true });
+        }
+
+        const resetSignalFile = path.join(queueDir, `reset-${userId.replace(/[^a-zA-Z0-9]/g, '_')}.json`);
+        fs.writeFileSync(resetSignalFile, JSON.stringify({
+          action: 'RESET_SESSION',
+          userId: userId,
+          timestamp: new Date().toISOString()
+        }));
+        console.log(`[CRM Service] Created reset signal for WhatsApp bot: ${resetSignalFile}`);
+      } catch (signalError) {
+        console.error('[CRM Service] Failed to create reset signal:', signalError.message);
+        // Non-fatal - continue anyway
+      }
+
+      console.log(`[CRM Service] Client context reset: ${userId}, conversations: ${conversationCount}, session cleared`);
 
       return {
         deletedConversations: conversationCount,
-        clientName: client.nama,
-        clientOrg: client.instansi,
-        deleted: true
+        clientName: oldName,
+        clientOrg: oldOrg,
+        reset: true
       };
     } catch (error) {
-      console.error('[CRM Service] Error deleting client:', error);
+      console.error('[CRM Service] Error resetting client context:', error);
       throw error;
     }
   }

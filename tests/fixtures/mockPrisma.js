@@ -3,6 +3,7 @@
  * Provides in-memory database simulation
  */
 
+import { jest } from '@jest/globals';
 import { mockUsers, mockConversations, mockSessions } from './mockUsers.js';
 
 class MockPrismaClient {
@@ -14,8 +15,49 @@ class MockPrismaClient {
 
   // User operations
   user = {
-    findUnique: jest.fn(async ({ where }) => {
-      return this.users.find(u => u.id === where.id) || null;
+    findUnique: jest.fn(async ({ where, include }) => {
+      const user = this.users.find(u => u.id === where.id);
+      if (!user) return null;
+
+      const result = { ...user };
+
+      if (include?._count) {
+        result._count = {};
+        if (include._count.select?.conversations) {
+          result._count.conversations = this.conversations.filter(c => c.userId === user.id).length;
+        }
+      }
+
+      if (include?.conversations) {
+        let userConversations = this.conversations.filter(c => c.userId === user.id);
+        if (include.conversations.orderBy) {
+          const field = Object.keys(include.conversations.orderBy)[0];
+          const direction = include.conversations.orderBy[field];
+          userConversations.sort((a, b) => {
+            if (direction === 'desc') {
+              return b[field] > a[field] ? 1 : -1;
+            }
+            return a[field] > b[field] ? 1 : -1;
+          });
+        }
+        if (include.conversations.take) {
+          userConversations = userConversations.slice(0, include.conversations.take);
+        }
+        if (include.conversations.select) {
+          userConversations = userConversations.map(c => {
+            const selected = {};
+            Object.keys(include.conversations.select).forEach(key => {
+              if (include.conversations.select[key]) {
+                selected[key] = c[key];
+              }
+            });
+            return selected;
+          });
+        }
+        result.conversations = userConversations;
+      }
+
+      return result;
     }),
 
     findMany: jest.fn(async ({ where, orderBy, take, skip } = {}) => {
@@ -218,6 +260,23 @@ class MockPrismaClient {
       }
 
       return result;
+    }),
+
+    deleteMany: jest.fn(async ({ where } = {}) => {
+      let toDelete = [...this.sessions];
+
+      if (where?.lastActive?.lt) {
+        toDelete = toDelete.filter(s => s.lastActive < where.lastActive.lt);
+      }
+
+      toDelete.forEach(session => {
+        const index = this.sessions.findIndex(s => s.userId === session.userId);
+        if (index !== -1) {
+          this.sessions.splice(index, 1);
+        }
+      });
+
+      return { count: toDelete.length };
     })
   };
 
