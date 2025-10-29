@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
+import CustomAlert from './CustomAlert';
+import CustomConfirm from './CustomConfirm';
+import { useAlert } from '../hooks/useAlert';
 import './WhitelistManager.css';
 
 export default function WhitelistManager() {
+  const { showAlert, showConfirm, alert, confirm } = useAlert();
   const [internalWhitelist, setInternalWhitelist] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -34,7 +38,7 @@ export default function WhitelistManager() {
   const handleAddInternal = async (e) => {
     e.preventDefault();
     if (!newInternalPhone.trim()) {
-      alert('Nomor WhatsApp harus diisi!');
+      showAlert('Nomor WhatsApp harus diisi!', 'warning');
       return;
     }
 
@@ -53,27 +57,32 @@ export default function WhitelistManager() {
       setNewInternalPhone('');
       setNewInternalName('');
 
-      alert('Tim internal berhasil ditambahkan ke whitelist!');
+      showAlert('Tim internal berhasil ditambahkan ke whitelist!', 'success');
     } catch (err) {
       console.error('Error adding internal:', err);
-      alert('Gagal menambah tim internal: ' + err.message);
+      showAlert('Gagal menambah tim internal: ' + err.message, 'error');
     } finally {
       setAdding(false);
     }
   };
 
   const handleDelete = async (phoneNumber, type) => {
-    if (!confirm(`Hapus ${phoneNumber} dari whitelist ${type}?`)) {
-      return;
-    }
+    showConfirm(
+      `Hapus ${phoneNumber} dari whitelist ${type}?`,
+      async () => {
+        await executeDelete(phoneNumber);
+      }
+    );
+  };
 
+  const executeDelete = async (phoneNumber) => {
     try {
       await api.removeFromWhitelist(phoneNumber);
       await fetchWhitelist();
-      alert('Nomor berhasil dihapus dari whitelist!');
+      showAlert('Nomor berhasil dihapus dari whitelist!', 'success');
     } catch (err) {
       console.error('Error deleting:', err);
-      alert('Gagal menghapus nomor: ' + err.message);
+      showAlert('Gagal menghapus nomor: ' + err.message, 'error');
     }
   };
 
@@ -200,6 +209,24 @@ export default function WhitelistManager() {
           Sistem akan otomatis mengkonversi ke format WhatsApp yang benar.
         </p>
       </div>
+
+      {/* Custom Alert and Confirm Modals */}
+      {alert && (
+        <CustomAlert
+          message={alert.message}
+          type={alert.type}
+          onClose={() => showAlert(null)}
+        />
+      )}
+      {confirm && (
+        <CustomConfirm
+          message={confirm.message}
+          confirmText={confirm.confirmText}
+          cancelText={confirm.cancelText}
+          onConfirm={confirm.onConfirm}
+          onCancel={confirm.onCancel}
+        />
+      )}
     </div>
   );
 }

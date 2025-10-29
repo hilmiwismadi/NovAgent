@@ -1,85 +1,96 @@
+/* Whitelist Container */
 .whitelist-container {
-  padding: 20px;
+  padding: 24px;
   max-width: 1400px;
   margin: 0 auto;
 }
 
+/* Whitelist Header */
 .whitelist-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
-  padding-bottom: 15px;
-  border-bottom: 2px solid #e0e0e0;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .whitelist-header h2 {
   margin: 0;
-  font-size: 24px;
-  color: #333;
+  font-size: 20px;
+  font-weight: 600;
+  color: #111827;
 }
 
 .refresh-btn-small {
   padding: 8px 16px;
-  background-color: #4CAF50;
+  background: #10b981;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.3s;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.2s;
 }
 
 .refresh-btn-small:hover {
-  background-color: #45a049;
+  background: #059669;
 }
 
+/* Error Banner */
 .error-banner {
-  background-color: #ffebee;
-  color: #c62828;
-  padding: 15px;
-  border-radius: 4px;
+  background: #fef2f2;
+  color: #dc2626;
+  padding: 14px 18px;
+  border-radius: 6px;
+  border: 1px solid #fecaca;
   margin-bottom: 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-size: 14px;
 }
 
 .error-banner button {
-  padding: 6px 12px;
-  background-color: #c62828;
+  padding: 5px 12px;
+  background: #dc2626;
   color: white;
   border: none;
-  border-radius: 3px;
+  border-radius: 4px;
   cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
 }
 
+/* Info Box */
 .whitelist-info-top {
-  background-color: #e3f2fd;
-  padding: 15px 20px;
+  background: #eff6ff;
+  padding: 14px 18px;
   border-radius: 6px;
-  border-left: 4px solid #2196F3;
-  margin-bottom: 25px;
+  border: 1px solid #bfdbfe;
+  margin-bottom: 24px;
 }
 
 .whitelist-info-top p {
   margin: 0;
-  font-size: 14px;
-  color: #555;
+  font-size: 13px;
+  color: #1e40af;
   line-height: 1.6;
 }
 
+/* Whitelist Sections */
 .whitelist-sections {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 30px;
+  gap: 24px;
   margin-bottom: 20px;
 }
 
 .whitelist-sections-single {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 30px;
+  gap: 24px;
   margin-bottom: 20px;
   max-width: 900px;
   margin-left: auto;
@@ -94,20 +105,22 @@
 
 .whitelist-section {
   background: white;
-  border: 1px solid #ddd;
+  border: 1px solid #e5e7eb;
   border-radius: 8px;
   padding: 20px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .whitelist-section h3 {
-  margin: 0 0 20px 0;
-  font-size: 18px;
-  color: #333;
-  padding-bottom: 10px;
-  border-bottom: 2px solid #f0f0f0;
+  margin: 0 0 18px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f3f4f6;
 }
 
+/* Add Form */
 .add-form {
   margin-bottom: 20px;
 }
@@ -127,17 +140,20 @@
 
 .phone-input,
 .name-input {
-  padding: 10px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  padding: 9px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
   font-size: 14px;
-  transition: border-color 0.3s;
+  transition: border 0.15s;
+  background: white;
+  color: #111827;
 }
 
 .phone-input:focus,
 .name-input:focus {
   outline: none;
-  border-color: #2196F3;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .phone-input {
@@ -145,125 +161,134 @@
 }
 
 .add-btn {
-  padding: 10px 16px;
-  background-color: #2196F3;
+  padding: 9px 16px;
+  background: #3b82f6;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
-  transition: background-color 0.3s;
+  transition: background 0.2s;
   white-space: nowrap;
 }
 
 .add-btn:hover:not(:disabled) {
-  background-color: #1976D2;
+  background: #2563eb;
 }
 
 .add-btn:disabled {
-  background-color: #ccc;
+  background: #9ca3af;
   cursor: not-allowed;
 }
 
+/* Table Container */
 .whitelist-table-container {
   max-height: 400px;
   overflow-y: auto;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
 }
 
 .whitelist-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .whitelist-table thead {
   position: sticky;
   top: 0;
-  background-color: #f5f5f5;
+  background: #f9fafb;
   z-index: 1;
 }
 
 .whitelist-table th {
-  padding: 12px 10px;
+  padding: 11px 12px;
   text-align: left;
   font-weight: 600;
-  color: #555;
-  border-bottom: 2px solid #ddd;
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .whitelist-table td {
-  padding: 10px;
-  border-bottom: 1px solid #eee;
+  padding: 10px 12px;
+  border-bottom: 1px solid #f3f4f6;
 }
 
 .whitelist-table tbody tr:hover {
-  background-color: #f9f9f9;
+  background: #f9fafb;
 }
 
 .phone-cell {
   font-family: 'Courier New', monospace;
-  color: #1976D2;
+  color: #059669;
   font-weight: 500;
 }
 
 .date-cell {
-  color: #666;
+  color: #6b7280;
   font-size: 12px;
 }
 
 .delete-btn {
-  padding: 6px 12px;
-  background-color: #f44336;
+  padding: 5px 11px;
+  background: #ef4444;
   color: white;
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 13px;
-  transition: background-color 0.3s;
+  font-size: 12px;
+  font-weight: 500;
+  transition: background 0.2s;
 }
 
 .delete-btn:hover {
-  background-color: #d32f2f;
+  background: #dc2626;
 }
 
+/* Empty State */
 .empty-state {
   text-align: center;
   padding: 40px 20px;
-  color: #999;
-  font-style: italic;
+  color: #9ca3af;
+  font-size: 14px;
 }
 
+/* Bottom Info */
 .whitelist-info {
-  background-color: #e3f2fd;
-  padding: 15px 20px;
+  background: #eff6ff;
+  padding: 14px 18px;
   border-radius: 6px;
-  border-left: 4px solid #2196F3;
+  border: 1px solid #bfdbfe;
   margin-top: 20px;
 }
 
 .whitelist-info p {
   margin: 0;
-  font-size: 14px;
-  color: #555;
+  font-size: 13px;
+  color: #1e40af;
   line-height: 1.6;
 }
 
 .whitelist-info code {
-  background-color: #fff;
+  background: #dbeafe;
   padding: 2px 6px;
   border-radius: 3px;
   font-family: 'Courier New', monospace;
-  color: #d32f2f;
-  font-size: 13px;
-  margin: 0 3px;
+  color: #1e3a8a;
+  font-size: 12px;
+  margin: 0 2px;
+  border: 1px solid #93c5fd;
 }
 
+/* Loading State */
 .loading {
   text-align: center;
   padding: 60px 20px;
-  font-size: 16px;
-  color: #666;
+  font-size: 15px;
+  color: #6b7280;
 }
