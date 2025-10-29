@@ -21,6 +21,7 @@ router.post('/clients/:id/reset-context', crmController.resetClientContext.bind(
 
 // Conversation Management
 router.get('/conversations/:userId', crmController.getConversations.bind(crmController));
+router.get('/conversations/:userId/summary', crmController.getConversationSummary.bind(crmController));
 
 // WhatsApp Integration
 router.post('/whatsapp/send', whatsappController.sendMessage.bind(whatsappController));

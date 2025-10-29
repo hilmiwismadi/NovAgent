@@ -131,6 +131,23 @@ class CRMController {
   }
 
   /**
+   * GET /api/dashboard/conversations/:userId/summary - Get conversation summary
+   */
+  async getConversationSummary(req, res) {
+    try {
+      const { userId } = req.params;
+      const summary = await crmService.getConversationSummary(userId);
+      res.json(summary);
+    } catch (error) {
+      console.error('[CRM Controller] Error in getConversationSummary:', error);
+      res.status(500).json({
+        error: 'Failed to generate conversation summary',
+        message: error.message
+      });
+    }
+  }
+
+  /**
    * GET /api/dashboard/statistics - Get dashboard statistics
    */
   async getStatistics(req, res) {

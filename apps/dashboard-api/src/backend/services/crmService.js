@@ -144,6 +144,161 @@ class CRMService {
   }
 
   /**
+   * Generate conversation summary for admin to understand the context
+   */
+  async getConversationSummary(userId) {
+    try {
+      const conversations = await prisma.conversation.findMany({
+        where: { userId },
+        orderBy: {
+          timestamp: 'asc' // Oldest first for chronological summary
+        }
+      });
+
+      if (conversations.length === 0) {
+        return {
+          summary: 'No conversation history available.',
+          totalMessages: 0,
+          timestamp: new Date().toISOString()
+        };
+      }
+
+      // Get user info
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          nama: true,
+          instansi: true,
+          event: true,
+          dealStatus: true,
+          status: true,
+          notes: true
+        }
+      });
+
+      // Build comprehensive summary
+      let summary = '📋 CONVERSATION CONTEXT SUMMARY\n\n';
+
+      // Client info
+      summary += '👤 CLIENT INFORMATION:\n';
+      summary += `   Name: ${user?.nama || 'N/A'}\n`;
+      summary += `   Organization: ${user?.instansi || 'N/A'}\n`;
+      summary += `   Event: ${user?.event || 'N/A'}\n`;
+      summary += `   Deal Status: ${user?.dealStatus || 'N/A'}\n`;
+      summary += `   Status: ${user?.status || 'N/A'}\n`;
+      if (user?.notes) {
+        summary += `   Notes: ${user.notes}\n`;
+      }
+      summary += '\n';
+
+      // Conversation statistics
+      const userMessages = conversations.filter(c => c.userMessage && c.userMessage.trim() !== '').length;
+      const botMessages = conversations.filter(c => c.agentResponse && c.metadata?.source !== 'dashboard').length;
+      const adminMessages = conversations.filter(c => c.agentResponse && c.metadata?.source === 'dashboard').length;
+
+      summary += '📊 CONVERSATION STATISTICS:\n';
+      summary += `   Total messages: ${conversations.length}\n`;
+      summary += `   Client messages: ${userMessages}\n`;
+      summary += `   Bot responses: ${botMessages}\n`;
+      summary += `   Admin replies: ${adminMessages}\n`;
+      summary += `   Duration: ${this.formatDateRange(conversations[0].timestamp, conversations[conversations.length - 1].timestamp)}\n`;
+      summary += '\n';
+
+      // Key topics and interactions
+      summary += '💬 CONVERSATION HIGHLIGHTS:\n\n';
+
+      // Group conversations into logical segments
+      const segments = this.groupConversationSegments(conversations);
+
+      segments.forEach((segment, index) => {
+        const date = new Date(segment.timestamp).toLocaleDateString('id-ID', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        summary += `[${date}] `;
+
+        if (segment.userMessage && segment.userMessage.trim() !== '') {
+          summary += `Client: ${this.truncateText(segment.userMessage, 100)}\n`;
+        }
+
+        if (segment.agentResponse) {
+          const source = segment.metadata?.source === 'dashboard' ? 'Admin' : 'Bot';
+          summary += `         ${source}: ${this.truncateText(segment.agentResponse, 100)}\n`;
+        }
+
+        summary += '\n';
+      });
+
+      // Extract key information from context snapshots
+      const latestContext = conversations[conversations.length - 1].contextSnapshot;
+      if (latestContext) {
+        summary += '\n🔍 LATEST CONTEXT:\n';
+        if (latestContext.interests) {
+          summary += `   Topics discussed: ${latestContext.interests.join(', ')}\n`;
+        }
+        if (latestContext.lastTopic) {
+          summary += `   Last topic: ${latestContext.lastTopic}\n`;
+        }
+      }
+
+      return {
+        summary: summary.trim(),
+        totalMessages: conversations.length,
+        userMessages,
+        botMessages,
+        adminMessages,
+        timestamp: new Date().toISOString()
+      };
+
+    } catch (error) {
+      console.error(`[CRM Service] Error generating conversation summary for ${userId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Helper: Group conversations into meaningful segments (limit to last 10 exchanges)
+   */
+  groupConversationSegments(conversations) {
+    // Take last 10 conversation pairs
+    const limit = Math.min(10, conversations.length);
+    return conversations.slice(-limit);
+  }
+
+  /**
+   * Helper: Truncate text for summary
+   */
+  truncateText(text, maxLength) {
+    if (!text || text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+  }
+
+  /**
+   * Helper: Format date range
+   */
+  formatDateRange(startDate, endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const diffMs = end - start;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+      return 'Today';
+    } else if (diffDays === 1) {
+      return '1 day';
+    } else if (diffDays < 30) {
+      return `${diffDays} days`;
+    } else {
+      const months = Math.floor(diffDays / 30);
+      return `${months} month${months > 1 ? 's' : ''}`;
+    }
+  }
+
+  /**
    * Get dashboard statistics
    */
   async getStatistics() {
