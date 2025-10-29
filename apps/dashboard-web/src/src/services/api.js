@@ -66,6 +66,10 @@ class DashboardAPI {
     return this.request(`/conversations/${encodeURIComponent(userId)}?limit=${limit}`);
   }
 
+  async getConversationSummary(userId) {
+    return this.request(`/conversations/${encodeURIComponent(userId)}/summary`);
+  }
+
   // Statistics
   async getStatistics() {
     return this.request('/statistics');

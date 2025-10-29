@@ -17,6 +17,8 @@ export default function Dashboard() {
   const [conversations, setConversations] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [loadingSummary, setLoadingSummary] = useState(false);
+  const [conversationSummary, setConversationSummary] = useState(null);
 
   // Add client state
   const [newClientPhone, setNewClientPhone] = useState('');
@@ -82,6 +84,7 @@ export default function Dashboard() {
   const handleViewConversations = async (client) => {
     try {
       setSelectedClient(client);
+      setConversationSummary(null); // Reset summary when opening new chat
       const convs = await api.getConversations(client.id);
       setConversations(convs);
 
@@ -169,6 +172,22 @@ export default function Dashboard() {
       showAlert('Failed to send message: ' + err.message, 'error');
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleGetContextSummary = async () => {
+    if (!selectedClient) return;
+
+    try {
+      setLoadingSummary(true);
+      const summary = await api.getConversationSummary(selectedClient.id);
+      setConversationSummary(summary);
+      showAlert('Context summary generated successfully!', 'success');
+    } catch (err) {
+      console.error('Error getting context summary:', err);
+      showAlert('Failed to generate summary: ' + err.message, 'error');
+    } finally {
+      setLoadingSummary(false);
     }
   };
 
@@ -362,6 +381,7 @@ export default function Dashboard() {
               <th>Event</th>
               <th>IG Link</th>
               <th>Last Contact</th>
+              <th>Meeting Date</th>
               <th>Status</th>
               <th>Deal Status</th>
               <th>PIC</th>
@@ -422,6 +442,24 @@ export default function Dashboard() {
                   />
                 </td>
                 <td>{formatDate(client.lastContact)}</td>
+                <td className="meeting-date-cell">
+                  {client.meetingDate ? (
+                    <div className="meeting-date-display">
+                      <span className="meeting-date-icon">📅</span>
+                      <span className="meeting-date-text">
+                        {new Date(client.meetingDate).toLocaleString('id-ID', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="no-meeting">-</span>
+                  )}
+                </td>
                 <td>
                   <select
                     value={client.status || 'To Do'}
@@ -484,8 +522,65 @@ export default function Dashboard() {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Chat: {selectedClient.nama || formatPhone(selectedClient.id)}</h2>
-              <button onClick={() => setSelectedClient(null)}>✕</button>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <button
+                  onClick={handleGetContextSummary}
+                  disabled={loadingSummary || conversations.length === 0}
+                  className="context-summary-btn"
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#4CAF50',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: loadingSummary || conversations.length === 0 ? 'not-allowed' : 'pointer',
+                    fontSize: '14px',
+                    opacity: loadingSummary || conversations.length === 0 ? 0.6 : 1,
+                    minWidth: '150px',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {loadingSummary ? '⏳ Loading...' : '📋 Summary'}
+                </button>
+                <button onClick={() => setSelectedClient(null)}>✕</button>
+              </div>
             </div>
+
+            {conversationSummary && (
+              <div style={{
+                padding: '15px',
+                backgroundColor: '#f0f7ff',
+                border: '1px solid #4CAF50',
+                borderRadius: '8px',
+                margin: '10px',
+                marginTop: '0'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '10px' }}>
+                  <h3 style={{ margin: 0, color: '#2c5282' }}>📋 Conversation Summary</h3>
+                  <button
+                    onClick={() => setConversationSummary(null)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      fontSize: '20px',
+                      cursor: 'pointer',
+                      color: '#666'
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div style={{ whiteSpace: 'pre-wrap', color: '#1a365d', lineHeight: '1.6' }}>
+                  {conversationSummary.summary}
+                </div>
+                {conversationSummary.totalMessages && (
+                  <div style={{ marginTop: '10px', fontSize: '12px', color: '#718096' }}>
+                    📊 Total messages: {conversationSummary.totalMessages} |
+                    Last updated: {new Date(conversationSummary.timestamp).toLocaleString('id-ID')}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="chat-history-container">
               {conversations.length === 0 ? (
