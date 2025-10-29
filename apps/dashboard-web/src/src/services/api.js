@@ -55,6 +55,12 @@ class DashboardAPI {
     });
   }
 
+  async resetClientContext(id) {
+    return this.request(`/clients/${encodeURIComponent(id)}/reset-context`, {
+      method: 'POST'
+    });
+  }
+
   // Conversation Management
   async getConversations(userId, limit = 50) {
     return this.request(`/conversations/${encodeURIComponent(userId)}?limit=${limit}`);
@@ -73,6 +79,24 @@ class DashboardAPI {
         to: userId,
         message: message
       })
+    });
+  }
+
+  async getWhatsAppQR() {
+    return this.request('/whatsapp/qr');
+  }
+
+  async getWhatsAppStatus() {
+    return this.request('/whatsapp/status');
+  }
+
+  async getWhatsAppInfo() {
+    return this.request('/whatsapp/info');
+  }
+
+  async logoutWhatsApp() {
+    return this.request('/whatsapp/logout', {
+      method: 'POST'
     });
   }
 

@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 import WhitelistManager from './WhitelistManager';
+import WhatsAppQR from './WhatsAppQR';
+import CustomAlert from './CustomAlert';
+import CustomConfirm from './CustomConfirm';
+import { useAlert } from '../hooks/useAlert';
 import './Dashboard.css';
 
 export default function Dashboard() {
+  const { showAlert, showConfirm, alert, confirm } = useAlert();
   const [activeTab, setActiveTab] = useState('crm'); // 'crm' or 'whitelist'
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,6 +28,16 @@ export default function Dashboard() {
     fetchClients();
     fetchWhitelistData();
   }, []);
+
+  // Update page title based on active tab
+  useEffect(() => {
+    const titles = {
+      crm: 'CRM - NovAgent Dashboard',
+      whitelist: 'Whitelist - NovAgent Dashboard',
+      whatsapp: 'WhatsApp QR - NovAgent Dashboard'
+    };
+    document.title = titles[activeTab] || 'NovAgent Dashboard';
+  }, [activeTab]);
 
   const fetchClients = async () => {
     try {
@@ -60,7 +75,7 @@ export default function Dashboard() {
       ));
     } catch (err) {
       console.error('Error updating client:', err);
-      alert('Failed to update: ' + err.message);
+      showAlert('Failed to update: ' + err.message, 'error');
     }
   };
 
@@ -79,8 +94,57 @@ export default function Dashboard() {
       }
     } catch (err) {
       console.error('Error fetching conversations:', err);
-      alert('Failed to fetch conversations: ' + err.message);
+      showAlert('Failed to fetch conversations: ' + err.message, 'error');
     }
+  };
+
+  const handleResetContext = (client) => {
+    showConfirm(
+      `HAPUS client ${client.nama || formatPhone(client.id)}?\n\n` +
+      `⚠️ PERHATIAN: Ini akan MENGHAPUS PERMANENT:\n` +
+      `• Semua conversation history\n` +
+      `• Event details & pricing\n` +
+      `• Meeting schedules\n` +
+      `• User record dari database\n\n` +
+      `❌ Row akan HILANG dari tabel!\n` +
+      `❌ Tindakan ini TIDAK BISA dibatalkan!\n\n` +
+      `Client harus didaftarkan ulang jika ingin chat lagi.`,
+      async () => {
+        // User confirmed - proceed with DELETE
+        try {
+          const result = await api.resetClientContext(client.id);
+
+          // Immediately REMOVE the client from the table
+          setClients(prevClients => prevClients.filter(c => c.id !== client.id));
+
+          // Close modal if open
+          if (selectedClient && selectedClient.id === client.id) {
+            setSelectedClient(null);
+            setConversations([]);
+          }
+
+          // Show success message
+          showAlert(
+            `✅ Client berhasil dihapus!\n\n` +
+            `Client: ${result.clientName || 'N/A'}\n` +
+            `Organisasi: ${result.clientOrg || 'N/A'}\n\n` +
+            `Deleted:\n` +
+            `✓ ${result.deletedConversations} conversations\n` +
+            `✓ All client data\n` +
+            `✓ User record\n\n` +
+            `Row telah dihapus dari tabel!`,
+            'success'
+          );
+        } catch (err) {
+          console.error('Error deleting client:', err);
+          showAlert('Failed to delete client: ' + err.message, 'error');
+        }
+      },
+      () => {
+        // User cancelled - do nothing
+        console.log('Reset cancelled by user');
+      }
+    );
   };
 
   const handleSendMessage = async (e) => {
@@ -99,10 +163,10 @@ export default function Dashboard() {
       await handleUpdate(selectedClient.id, 'lastContact', new Date());
 
       setNewMessage('');
-      alert('Message sent successfully!');
+      showAlert('Message sent successfully!', 'success');
     } catch (err) {
       console.error('Error sending message:', err);
-      alert('Failed to send message: ' + err.message);
+      showAlert('Failed to send message: ' + err.message, 'error');
     } finally {
       setSending(false);
     }
@@ -121,7 +185,7 @@ export default function Dashboard() {
   const handleAddClient = async (e) => {
     e.preventDefault();
     if (!newClientPhone.trim()) {
-      alert('Nomor WhatsApp harus diisi!');
+      showAlert('Nomor WhatsApp harus diisi!', 'warning');
       return;
     }
 
@@ -141,10 +205,10 @@ export default function Dashboard() {
       await fetchClients();
       await fetchWhitelistData();
 
-      alert('✅ Client berhasil ditambahkan!\nBot sekarang akan merespon chat dari nomor ini.');
+      showAlert('Client berhasil ditambahkan!\nBot sekarang akan merespon chat dari nomor ini.', 'success');
     } catch (err) {
       console.error('Error adding client:', err);
-      alert('❌ Gagal menambah client: ' + err.message);
+      showAlert('Gagal menambah client: ' + err.message, 'error');
     } finally {
       setAddingClient(false);
     }
@@ -154,9 +218,15 @@ export default function Dashboard() {
     const action = currentStatus ? 'hapus dari' : 'tambahkan ke';
     const actionIng = currentStatus ? 'menghapus' : 'menambahkan';
 
-    if (!confirm(`${action.charAt(0).toUpperCase() + action.slice(1)} whitelist untuk ${phoneNumber.replace('@c.us', '')}?\n\nBot ${currentStatus ? 'tidak akan' : 'akan'} merespon chat dari nomor ini.`)) {
-      return;
-    }
+    showConfirm(
+      `${action.charAt(0).toUpperCase() + action.slice(1)} whitelist untuk ${phoneNumber.replace('@c.us', '')}?\n\nBot ${currentStatus ? 'tidak akan' : 'akan'} merespon chat dari nomor ini.`,
+      async () => {
+        await executeToggleWhitelist(phoneNumber, currentStatus, actionIng);
+      }
+    );
+  };
+
+  const executeToggleWhitelist = async (phoneNumber, currentStatus, actionIng) => {
 
     try {
       if (currentStatus) {
@@ -172,10 +242,10 @@ export default function Dashboard() {
       }
 
       await fetchWhitelistData();
-      alert(`✅ Berhasil ${actionIng} whitelist!`);
+      showAlert(`Berhasil ${actionIng} whitelist!`, 'success');
     } catch (err) {
       console.error(`Error ${actionIng} whitelist:`, err);
-      alert(`❌ Gagal ${actionIng} whitelist: ` + err.message);
+      showAlert(`Gagal ${actionIng} whitelist: ` + err.message, 'error');
     }
   };
 
@@ -212,6 +282,12 @@ export default function Dashboard() {
             className={`tab-btn ${activeTab === 'whitelist' ? 'active' : ''}`}
           >
             📋 Whitelist
+          </button>
+          <button
+            onClick={() => setActiveTab('whatsapp')}
+            className={`tab-btn ${activeTab === 'whatsapp' ? 'active' : ''}`}
+          >
+            📱 WhatsApp
           </button>
         </div>
         {activeTab === 'crm' && (
@@ -380,12 +456,21 @@ export default function Dashboard() {
                   </select>
                 </td>
                 <td>
-                  <button
-                    className="action-btn"
-                    onClick={() => handleViewConversations(client)}
-                  >
-                    💬 Chat
-                  </button>
+                  <div style={{ display: 'flex', gap: '5px', flexDirection: 'column' }}>
+                    <button
+                      className="action-btn"
+                      onClick={() => handleViewConversations(client)}
+                    >
+                      💬 Chat
+                    </button>
+                    <button
+                      className="action-btn reset-btn"
+                      onClick={() => handleResetContext(client)}
+                      title="Reset conversation history & context"
+                    >
+                      🔄 Reset
+                    </button>
+                  </div>
                 </td>
               </tr>
               );
@@ -478,6 +563,29 @@ export default function Dashboard() {
       {/* WHITELIST TAB CONTENT */}
       {activeTab === 'whitelist' && (
         <WhitelistManager />
+      )}
+
+      {/* WHATSAPP TAB CONTENT */}
+      {activeTab === 'whatsapp' && (
+        <WhatsAppQR />
+      )}
+
+      {/* Custom Alert and Confirm Modals */}
+      {alert && (
+        <CustomAlert
+          message={alert.message}
+          type={alert.type}
+          onClose={() => showAlert(null)}
+        />
+      )}
+      {confirm && (
+        <CustomConfirm
+          message={confirm.message}
+          confirmText={confirm.confirmText}
+          cancelText={confirm.cancelText}
+          onConfirm={confirm.onConfirm}
+          onCancel={confirm.onCancel}
+        />
       )}
     </div>
   );

@@ -1,85 +1,95 @@
+/* Dashboard Container */
 .dashboard-container {
-  padding: 20px;
+  padding: 24px;
   max-width: 1600px;
   margin: 0 auto;
+  min-height: 100vh;
+  background: #f9fafb;
 }
 
+/* Dashboard Header */
 .dashboard-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 15px;
-  border-bottom: 2px solid #ecf0f1;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .dashboard-header h1 {
-  color: #2c3e50;
+  color: #111827;
   margin: 0;
+  font-size: 24px;
+  font-weight: 700;
 }
 
+/* Tab Navigation */
 .tab-navigation {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .tab-btn {
-  padding: 10px 20px;
-  background: #ecf0f1;
-  color: #34495e;
-  border: none;
-  border-radius: 6px 6px 0 0;
+  padding: 9px 18px;
+  background: #ffffff;
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
-  transition: all 0.3s ease;
-  position: relative;
+  transition: all 0.15s;
 }
 
 .tab-btn:hover {
-  background: #d5dbdb;
+  background: #f9fafb;
+  color: #374151;
 }
 
 .tab-btn.active {
-  background: #3498db;
+  background: #3b82f6;
   color: white;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 6px rgba(52, 152, 219, 0.3);
+  border-color: #3b82f6;
 }
 
 .refresh-btn {
-  padding: 10px 20px;
-  background: #3498db;
+  padding: 9px 18px;
+  background: #10b981;
   color: white;
   border: none;
-  border-radius: 5px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.2s;
 }
 
 .refresh-btn:hover {
-  background: #2980b9;
+  background: #059669;
 }
 
 /* Add Client Section */
 .add-client-section {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 25px;
-  border-radius: 10px;
-  margin-bottom: 25px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  padding: 24px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .add-client-section h3 {
-  margin: 0 0 8px 0;
-  font-size: 20px;
+  margin: 0 0 6px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
 }
 
 .section-description {
-  margin: 0 0 20px 0;
-  font-size: 14px;
-  opacity: 0.95;
+  margin: 0 0 16px 0;
+  font-size: 13px;
+  color: #6b7280;
 }
 
 .add-client-form {
@@ -101,21 +111,20 @@
 
 .client-phone-input,
 .client-name-input {
-  padding: 12px 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  padding: 10px 14px;
+  border: 1px solid #d1d5db;
   border-radius: 6px;
   font-size: 14px;
-  background: rgba(255, 255, 255, 0.95);
-  color: #333;
-  transition: all 0.3s;
+  background: #ffffff;
+  color: #111827;
+  transition: border 0.15s;
 }
 
 .client-phone-input:focus,
 .client-name-input:focus {
   outline: none;
-  border-color: white;
-  background: white;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .client-phone-input {
@@ -123,99 +132,99 @@
 }
 
 .client-add-btn {
-  padding: 12px 20px;
-  background: white;
-  color: #667eea;
+  padding: 10px 20px;
+  background: #3b82f6;
+  color: white;
   border: none;
   border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
-  font-weight: 600;
-  transition: all 0.3s;
+  font-weight: 500;
+  transition: background 0.2s;
   white-space: nowrap;
 }
 
 .client-add-btn:hover:not(:disabled) {
-  background: #f0f0f0;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  background: #2563eb;
 }
 
 .client-add-btn:disabled {
-  background: rgba(255, 255, 255, 0.6);
+  background: #9ca3af;
   cursor: not-allowed;
-  transform: none;
 }
 
-/* Whitelist Toggle Button in Table */
+/* Whitelist Toggle Button */
 .whitelist-cell {
   text-align: center;
 }
 
 .whitelist-toggle-btn {
-  padding: 6px 12px;
+  padding: 5px 12px;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
-  font-weight: 600;
-  transition: all 0.3s;
-  white-space: nowrap;
+  font-weight: 500;
+  transition: background 0.2s;
 }
 
 .whitelist-toggle-btn.active {
-  background: #4CAF50;
+  background: #10b981;
   color: white;
 }
 
 .whitelist-toggle-btn.active:hover {
-  background: #45a049;
-  transform: scale(1.05);
+  background: #059669;
 }
 
 .whitelist-toggle-btn.inactive {
-  background: #f44336;
+  background: #ef4444;
   color: white;
 }
 
 .whitelist-toggle-btn.inactive:hover {
-  background: #d32f2f;
-  transform: scale(1.05);
+  background: #dc2626;
 }
 
+/* Dashboard Stats */
 .dashboard-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 15px;
-  margin-bottom: 30px;
+  gap: 16px;
+  margin-bottom: 24px;
 }
 
 .stat-card {
   background: white;
   padding: 20px;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  text-align: center;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .stat-card h3 {
-  margin: 0 0 10px 0;
-  color: #7f8c8d;
-  font-size: 14px;
+  margin: 0 0 8px 0;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .stat-card p {
   margin: 0;
-  font-size: 32px;
-  font-weight: bold;
-  color: #2c3e50;
+  font-size: 28px;
+  font-weight: 700;
+  color: #111827;
 }
 
+/* Table Container */
 .table-container {
   overflow-x: auto;
   background: white;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .crm-table {
@@ -225,74 +234,92 @@
 }
 
 .crm-table th {
-  background: #34495e;
-  color: white;
-  padding: 12px;
+  background: #f9fafb;
+  color: #374151;
+  padding: 12px 16px;
   text-align: left;
   font-weight: 600;
+  font-size: 13px;
+  border-bottom: 1px solid #e5e7eb;
   position: sticky;
   top: 0;
 }
 
 .crm-table td {
-  padding: 10px;
-  border-bottom: 1px solid #ecf0f1;
-}
-
-.crm-table tr:hover {
-  background: #f8f9fa;
-}
-
-.crm-table input, .crm-table select {
-  width: 100%;
-  padding: 6px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f3f4f6;
   font-size: 14px;
 }
 
-.crm-table input:focus, .crm-table select:focus {
+.crm-table tr:hover {
+  background: #f9fafb;
+}
+
+.crm-table input,
+.crm-table select {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.crm-table input:focus,
+.crm-table select:focus {
   outline: none;
-  border-color: #3498db;
+  border-color: #3b82f6;
 }
 
 .phone-cell {
   font-family: 'Courier New', monospace;
-  color: #16a085;
+  color: #059669;
   font-weight: 500;
 }
 
 .action-btn {
   padding: 6px 12px;
-  background: #2ecc71;
+  background: #10b981;
   color: white;
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.2s;
 }
 
 .action-btn:hover {
-  background: #27ae60;
+  background: #059669;
 }
 
-.loading, .error {
+.action-btn.reset-btn {
+  background: #f59e0b;
+}
+
+.action-btn.reset-btn:hover {
+  background: #d97706;
+}
+
+.loading,
+.error {
   text-align: center;
-  padding: 40px;
-  font-size: 18px;
+  padding: 60px;
+  font-size: 16px;
+  color: #6b7280;
 }
 
 .error {
-  color: #e74c3c;
+  color: #dc2626;
 }
 
+/* Modal */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0,0,0,0.7);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -304,22 +331,25 @@
   border-radius: 8px;
   width: 90%;
   max-width: 800px;
-  max-height: 80vh;
+  max-height: 85vh;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
-  border-bottom: 1px solid #ecf0f1;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .modal-header h2 {
   margin: 0;
-  color: #2c3e50;
+  color: #111827;
+  font-size: 18px;
+  font-weight: 600;
 }
 
 .modal-header button {
@@ -327,23 +357,28 @@
   border: none;
   font-size: 24px;
   cursor: pointer;
-  color: #7f8c8d;
+  color: #9ca3af;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.15s;
 }
 
-/* WhatsApp-like Chat History */
+.modal-header button:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+/* Chat History Container */
 .chat-history-container {
   flex: 1;
   padding: 20px;
   overflow-y: auto;
-  background: #e5ddd5;  /* WhatsApp background */
-  background-image:
-    repeating-linear-gradient(
-      45deg,
-      transparent,
-      transparent 35px,
-      rgba(255,255,255,.05) 35px,
-      rgba(255,255,255,.05) 70px
-    );
+  background: #f3f4f6;
 }
 
 .no-messages-placeholder {
@@ -352,25 +387,26 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #667781;
+  color: #9ca3af;
   text-align: center;
 }
 
 .no-messages-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
-  opacity: 0.5;
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.4;
 }
 
 .no-messages-placeholder p {
-  margin: 0 0 8px 0;
-  font-size: 18px;
+  margin: 0 0 6px 0;
+  font-size: 16px;
   font-weight: 500;
+  color: #6b7280;
 }
 
 .no-messages-placeholder span {
-  font-size: 14px;
-  opacity: 0.7;
+  font-size: 13px;
+  color: #9ca3af;
 }
 
 .chat-bubbles {
@@ -394,92 +430,103 @@
 
 .chat-bubble {
   max-width: 65%;
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-radius: 8px;
-  position: relative;
   word-wrap: break-word;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .user-bubble {
-  background: #dcf8c6;  /* WhatsApp green for user */
+  background: #3b82f6;
+  color: white;
   border-bottom-right-radius: 2px;
 }
 
 .agent-bubble {
-  background: #ffffff;  /* WhatsApp white for agent */
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
   border-bottom-left-radius: 2px;
 }
 
 .bubble-sender {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  color: #06cf9c;  /* WhatsApp green accent */
-  margin-bottom: 2px;
+  color: inherit;
+  opacity: 0.8;
+  margin-bottom: 4px;
 }
 
 .bubble-content {
   font-size: 14px;
-  line-height: 1.4;
-  color: #303030;
+  line-height: 1.5;
   margin-bottom: 4px;
   white-space: pre-wrap;
 }
 
+.user-bubble .bubble-content {
+  color: white;
+}
+
+.agent-bubble .bubble-content {
+  color: #111827;
+}
+
 .bubble-time {
-  font-size: 11px;
-  color: #667781;
+  font-size: 10px;
+  opacity: 0.6;
   text-align: right;
   margin-top: 2px;
 }
 
 .ig-link-input {
-  font-size: 13px;
-  color: #2980b9;
+  font-size: 12px;
+  color: #3b82f6;
 }
 
-/* WhatsApp-like Message Input */
+/* Message Form */
 .message-form-container {
-  border-top: 1px solid #e1e1e1;
-  padding: 10px 15px;
-  background: #f0f0f0;
+  border-top: 1px solid #e5e7eb;
+  padding: 16px 20px;
+  background: #ffffff;
 }
 
 .message-form {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   align-items: flex-end;
 }
 
 .message-form textarea {
   flex: 1;
   padding: 10px 14px;
-  border: 1px solid #d1d1d1;
-  border-radius: 20px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
   font-size: 14px;
   font-family: inherit;
   resize: none;
   min-height: 20px;
   max-height: 100px;
   background: white;
-  line-height: 1.4;
+  line-height: 1.5;
+  color: #111827;
 }
 
 .message-form textarea:focus {
   outline: none;
-  border-color: #00a884;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .send-btn {
   padding: 10px 20px;
-  background: #25d366;  /* WhatsApp green */
+  background: #10b981;
   color: white;
   border: none;
-  border-radius: 20px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 14px;
-  font-weight: 600;
-  transition: all 0.2s;
+  font-weight: 500;
+  transition: background 0.2s;
   white-space: nowrap;
   display: flex;
   align-items: center;
@@ -487,14 +534,10 @@
 }
 
 .send-btn:hover:not(:disabled) {
-  background: #20c358;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(37, 211, 102, 0.3);
+  background: #059669;
 }
 
 .send-btn:disabled {
-  background: #95a5a6;
+  background: #9ca3af;
   cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
 }
