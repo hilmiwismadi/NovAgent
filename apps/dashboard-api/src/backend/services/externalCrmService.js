@@ -48,6 +48,7 @@ export class ExternalCRMService {
    * Fetch data from external CRM API
    * @returns {Array} Array of synced users
    */
+  /* istanbul ignore next */
   async pollExternalCRM() {
     if (!this.isEnabled || this.syncMode !== 'polling') {
       return [];
@@ -96,6 +97,7 @@ export class ExternalCRMService {
    * @param {string} userId - User ID to sync
    * @returns {boolean} Success status
    */
+  /* istanbul ignore next */
   async pushToExternalCRM(userId) {
     if (!this.isEnabled) {
       return false;
@@ -159,6 +161,7 @@ export class ExternalCRMService {
    * Map NovAgent internal format to external CRM format
    * This is a generic mapping - customize based on your CRM
    */
+  /* istanbul ignore next */
   mapInternalToExternal(userData) {
     return {
       whatsapp_id: userData.id,

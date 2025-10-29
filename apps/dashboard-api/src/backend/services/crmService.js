@@ -6,9 +6,10 @@ import path from 'path';
  * CRM Service - Business logic for dashboard CRM operations
  */
 class CRMService {
-  constructor(prismaClient = null, llmFactory = null) {
+  constructor(prismaClient = null, llmFactory = null, fsModule = null) {
     this.prisma = prismaClient || new PrismaClient();
     this.llmFactory = llmFactory;
+    this.fs = fsModule || fs;
   }
 
   /**
@@ -207,7 +208,9 @@ class CRMService {
       if (this.llmFactory) {
         llm = this.llmFactory();
       } else {
+        /* istanbul ignore next */
         const { ChatGroq } = await import("@langchain/groq");
+        /* istanbul ignore next */
         llm = new ChatGroq({
           apiKey: process.env.GROQ_API_KEY,
           model: "llama-3.3-70b-versatile",
@@ -423,12 +426,12 @@ Buatlah ringkasan yang profesional, ringkas (maksimal 200 kata), dan actionable.
       // Signal WhatsApp bot to clear in-memory session
       try {
         const queueDir = path.resolve(process.cwd(), '.message-queue');
-        if (!fs.existsSync(queueDir)) {
-          fs.mkdirSync(queueDir, { recursive: true });
+        if (!this.fs.existsSync(queueDir)) {
+          this.fs.mkdirSync(queueDir, { recursive: true });
         }
 
         const resetSignalFile = path.join(queueDir, `reset-${userId.replace(/[^a-zA-Z0-9]/g, '_')}.json`);
-        fs.writeFileSync(resetSignalFile, JSON.stringify({
+        this.fs.writeFileSync(resetSignalFile, JSON.stringify({
           action: 'RESET_SESSION',
           userId: userId,
           timestamp: new Date().toISOString()

@@ -238,19 +238,77 @@ describe('CRM Service', () => {
   });
 
   describe('resetClientContext', () => {
-    test('should reset client conversation context', async () => {
+    test('should reset client conversation context with file system success', async () => {
+      // Create service with mocked fs
+      const mockFs = {
+        existsSync: jest.fn().mockReturnValue(false),
+        mkdirSync: jest.fn(),
+        writeFileSync: jest.fn()
+      };
+      const serviceWithFs = new CRMService(mockPrisma, null, mockFs);
+
       mockPrisma.user.findUnique.mockResolvedValueOnce({
         nama: 'Test User',
         instansi: 'Test Corp',
         _count: { conversations: 5 }
       });
 
-      const result = await crmService.resetClientContext('628123456789@c.us');
+      const result = await serviceWithFs.resetClientContext('628123456789@c.us');
 
       expect(result).toBeDefined();
       expect(mockPrisma.conversation.deleteMany).toHaveBeenCalled();
       expect(mockPrisma.session.deleteMany).toHaveBeenCalled();
       expect(mockPrisma.user.update).toHaveBeenCalled();
+      expect(mockFs.existsSync).toHaveBeenCalled();
+      expect(mockFs.mkdirSync).toHaveBeenCalled();
+      expect(mockFs.writeFileSync).toHaveBeenCalled();
+    });
+
+    test('should reset client context when directory exists', async () => {
+      // Mock fs with existing directory
+      const mockFs = {
+        existsSync: jest.fn().mockReturnValue(true),
+        mkdirSync: jest.fn(),
+        writeFileSync: jest.fn()
+      };
+      const serviceWithFs = new CRMService(mockPrisma, null, mockFs);
+
+      mockPrisma.user.findUnique.mockResolvedValueOnce({
+        nama: 'Test User',
+        instansi: 'Test Corp',
+        _count: { conversations: 3 }
+      });
+
+      const result = await serviceWithFs.resetClientContext('628123456789@c.us');
+
+      expect(result).toBeDefined();
+      expect(mockFs.existsSync).toHaveBeenCalled();
+      expect(mockFs.mkdirSync).not.toHaveBeenCalled(); // Directory exists, shouldn't create
+      expect(mockFs.writeFileSync).toHaveBeenCalled();
+    });
+
+    test('should handle file system errors gracefully', async () => {
+      // Mock fs that throws error
+      const mockFs = {
+        existsSync: jest.fn().mockImplementation(() => {
+          throw new Error('FS Error');
+        }),
+        mkdirSync: jest.fn(),
+        writeFileSync: jest.fn()
+      };
+      const serviceWithFs = new CRMService(mockPrisma, null, mockFs);
+
+      mockPrisma.user.findUnique.mockResolvedValueOnce({
+        nama: 'Test User',
+        instansi: 'Test Corp',
+        _count: { conversations: 2 }
+      });
+
+      // Should not throw - error is caught and logged
+      const result = await serviceWithFs.resetClientContext('628123456789@c.us');
+
+      expect(result).toBeDefined();
+      expect(result.deletedConversations).toBe(2);
     });
 
     test('should throw error if client not found', async () => {
