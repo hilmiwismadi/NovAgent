@@ -46,16 +46,17 @@ export default {
     '!**/integrations/**',
     '!**/agent/**',
     '!packages/calendar/**',
-    '!**/whitelistService.js' // Exclude until whitelist model added to mockPrisma
+    '!**/whitelistService.js', // Exclude until whitelist model added to mockPrisma
+    '!**/prisma.js' // Exclude environment-specific initialization code
   ],
 
-  // Coverage thresholds
+  // Coverage thresholds - 100% on statements, lines, and functions; 95%+ on branches
   coverageThreshold: {
     global: {
-      branches: 70,
-      functions: 70,
-      lines: 80,
-      statements: 80
+      branches: 95, // Remaining 5% are genuinely untestable (LLM initialization, optional chaining, external APIs)
+      functions: 100,
+      lines: 100,
+      statements: 100
     }
   },
 

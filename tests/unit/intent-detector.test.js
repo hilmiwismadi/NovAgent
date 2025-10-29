@@ -311,6 +311,38 @@ describe('Intent Detector', () => {
       expect(result.entities.minPrice).toBe(200000);
       expect(result.entities.maxPrice).toBe(999999999);
     });
+
+    test('should handle price range with large numbers', () => {
+      const result = detector.detectIntent('Harga 100000-200000');
+
+      expect(result.intent).toBe('pricing');
+      expect(result.entities.minPrice).toBe(100000);
+      expect(result.entities.maxPrice).toBe(200000);
+    });
+
+    test('should handle "di bawah" with space', () => {
+      const result = detector.detectIntent('Budget di bawah 100k');
+
+      expect(result.intent).toBe('pricing');
+      expect(result.entities.minPrice).toBe(0);
+      expect(result.entities.maxPrice).toBe(100000);
+    });
+
+    test('should handle "di atas" with space', () => {
+      const result = detector.detectIntent('Harga di atas 150k');
+
+      expect(result.intent).toBe('pricing');
+      expect(result.entities.minPrice).toBe(150000);
+      expect(result.entities.maxPrice).toBe(999999999);
+    });
+
+    test('should handle large numbers in diatas pattern', () => {
+      const result = detector.detectIntent('Harga diatas 500000');
+
+      expect(result.intent).toBe('pricing');
+      expect(result.entities.minPrice).toBe(500000);
+      expect(result.entities.maxPrice).toBe(999999999);
+    });
   });
 
   describe('Help Intent Detection', () => {
@@ -511,6 +543,33 @@ describe('Intent Detector', () => {
 
       expect(result.intent).toBe('clients');
       expect(result.confidence).toBeGreaterThan(0.7);
+    });
+  });
+
+  describe('Confidence Calculation Edge Cases', () => {
+    test('should match pattern and have high confidence for short exact matches', () => {
+      const result = detector.detectIntent('daftar client');
+
+      expect(result.intent).toBe('clients');
+      expect(result.confidence).toBeGreaterThan(0.8); // Pattern match + short phrase + keywords
+    });
+
+    test('should have lower confidence for keyword-only match (no pattern)', () => {
+      // Use a keyword that matches but doesn't trigger pattern
+      const result = detector.detectIntent('stats');
+
+      // Should match via keyword with lower confidence (0.6)
+      expect(result.intent).toBe('stats');
+      expect(result.confidence).toBe(0.6);
+    });
+
+    test('should return bestMatch with confidence 0 for messages with no keywords or patterns', () => {
+      const result = detector.detectIntent('xyzabc random gibberish 12345');
+
+      // When no match is found, bestMatch has confidence 0
+      expect(result.confidence).toBe(0);
+      // Intent may be null or the default bestMatch intent
+      expect(result.entities).toBeDefined();
     });
   });
 });

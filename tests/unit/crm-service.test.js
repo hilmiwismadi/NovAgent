@@ -210,6 +210,146 @@ describe('CRM Service', () => {
       expect(mockLLM.invoke).toHaveBeenCalled();
     });
 
+    test('should handle empty userMessage and whitespace', async () => {
+      const mockLLM = {
+        invoke: jest.fn().mockResolvedValue({
+          content: 'Summary of admin messages'
+        })
+      };
+      const mockLLMFactory = jest.fn(() => mockLLM);
+      const serviceWithMockLLM = new CRMService(mockPrisma, mockLLMFactory);
+
+      // Mock conversations with empty and whitespace messages
+      mockPrisma.conversation.findMany.mockResolvedValueOnce([
+        {
+          timestamp: new Date('2025-01-01T10:00:00'),
+          userMessage: '',  // Empty
+          agentResponse: 'Hello',
+          metadata: { source: 'whatsapp' }
+        },
+        {
+          timestamp: new Date('2025-01-01T11:00:00'),
+          userMessage: '   ',  // Whitespace only
+          agentResponse: 'Response',
+          metadata: { source: 'whatsapp' }
+        }
+      ]);
+
+      mockPrisma.user.findUnique.mockResolvedValueOnce({
+        nama: 'Test User',
+        instansi: 'Test Corp'
+      });
+
+      const summary = await serviceWithMockLLM.getConversationSummary('628123456789@c.us');
+
+      expect(summary.userMessages).toBe(0);  // Empty messages not counted
+      expect(summary.totalMessages).toBe(2);
+    });
+
+    test('should differentiate between admin and bot messages', async () => {
+      const mockLLM = {
+        invoke: jest.fn().mockResolvedValue({
+          content: 'Summary with admin and bot'
+        })
+      };
+      const mockLLMFactory = jest.fn(() => mockLLM);
+      const serviceWithMockLLM = new CRMService(mockPrisma, mockLLMFactory);
+
+      // Mock conversations with mixed sources
+      mockPrisma.conversation.findMany.mockResolvedValueOnce([
+        {
+          timestamp: new Date('2025-01-01T10:00:00'),
+          userMessage: 'User msg',
+          agentResponse: 'Bot response',
+          metadata: { source: 'whatsapp' }
+        },
+        {
+          timestamp: new Date('2025-01-01T11:00:00'),
+          userMessage: 'Another user msg',
+          agentResponse: 'Admin response',
+          metadata: { source: 'dashboard' }
+        },
+        {
+          timestamp: new Date('2025-01-01T12:00:00'),
+          userMessage: null,
+          agentResponse: 'Bot only',
+          metadata: { source: 'whatsapp' }
+        }
+      ]);
+
+      mockPrisma.user.findUnique.mockResolvedValueOnce({
+        nama: 'Test User'
+      });
+
+      const summary = await serviceWithMockLLM.getConversationSummary('628123456789@c.us');
+
+      expect(summary.botMessages).toBe(2);
+      expect(summary.adminMessages).toBe(1);
+      expect(summary.userMessages).toBe(2);
+    });
+
+    test('should include user notes when available', async () => {
+      const mockLLM = {
+        invoke: jest.fn().mockResolvedValue({
+          content: 'Summary'
+        })
+      };
+      const mockLLMFactory = jest.fn(() => mockLLM);
+      const serviceWithMockLLM = new CRMService(mockPrisma, mockLLMFactory);
+
+      mockPrisma.conversation.findMany.mockResolvedValueOnce([
+        {
+          timestamp: new Date('2025-01-01T10:00:00'),
+          userMessage: 'Test',
+          agentResponse: 'Response',
+          metadata: { source: 'whatsapp' }
+        }
+      ]);
+
+      mockPrisma.user.findUnique.mockResolvedValueOnce({
+        nama: 'Test User',
+        instansi: 'Test Corp',
+        event: 'Test Event',
+        dealStatus: 'negotiating',
+        status: 'active',
+        notes: 'Very important client, follow up weekly'
+      });
+
+      const summary = await serviceWithMockLLM.getConversationSummary('628123456789@c.us');
+
+      expect(summary.summary).toContain('Catatan:');
+      expect(summary.summary).toContain('Very important client');
+    });
+
+    test('should handle user without notes', async () => {
+      const mockLLM = {
+        invoke: jest.fn().mockResolvedValue({
+          content: 'Summary'
+        })
+      };
+      const mockLLMFactory = jest.fn(() => mockLLM);
+      const serviceWithMockLLM = new CRMService(mockPrisma, mockLLMFactory);
+
+      mockPrisma.conversation.findMany.mockResolvedValueOnce([
+        {
+          timestamp: new Date('2025-01-01T10:00:00'),
+          userMessage: 'Test',
+          agentResponse: 'Response',
+          metadata: { source: 'whatsapp' }
+        }
+      ]);
+
+      mockPrisma.user.findUnique.mockResolvedValueOnce({
+        nama: 'Test User',
+        instansi: 'Test Corp',
+        notes: null  // No notes
+      });
+
+      const summary = await serviceWithMockLLM.getConversationSummary('628123456789@c.us');
+
+      expect(summary.summary).not.toContain('Catatan:');
+    });
+
     test('should handle database errors', async () => {
       mockPrisma.conversation.findMany.mockRejectedValueOnce(new Error('Summary Error'));
 
@@ -330,6 +470,32 @@ describe('CRM Service', () => {
       const truncated = crmService.truncateText(longText, 50);
 
       expect(truncated.length).toBeLessThanOrEqual(53); // 50 + '...'
+    });
+
+    test('truncateText should return text unchanged if shorter than limit', () => {
+      const shortText = 'Short text';
+      const result = crmService.truncateText(shortText, 50);
+
+      expect(result).toBe('Short text');
+    });
+
+    test('truncateText should return text unchanged if exactly at limit', () => {
+      const exactText = 'a'.repeat(50);
+      const result = crmService.truncateText(exactText, 50);
+
+      expect(result).toBe(exactText);
+    });
+
+    test('truncateText should handle null text', () => {
+      const result = crmService.truncateText(null, 50);
+
+      expect(result).toBeNull();
+    });
+
+    test('truncateText should handle undefined text', () => {
+      const result = crmService.truncateText(undefined, 50);
+
+      expect(result).toBeUndefined();
     });
 
     test('formatDateRange should format same day', () => {

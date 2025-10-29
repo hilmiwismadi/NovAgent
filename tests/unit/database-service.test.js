@@ -295,6 +295,76 @@ describe('Database Service', () => {
           where: { userId }
         });
       });
+
+      test('should handle P2025 error (record not found) gracefully', async () => {
+        const userId = '628nonexistent@c.us';
+        const p2025Error = new Error('Record not found');
+        p2025Error.code = 'P2025';
+
+        mockPrisma.session.delete.mockRejectedValueOnce(p2025Error);
+
+        // Should not throw
+        await expect(dbService.deleteSession(userId)).resolves.toBeUndefined();
+      });
+
+      test('should throw other errors', async () => {
+        const userId = '628test@c.us';
+        const otherError = new Error('Database connection failed');
+
+        mockPrisma.session.delete.mockRejectedValueOnce(otherError);
+
+        await expect(dbService.deleteSession(userId)).rejects.toThrow('Database connection failed');
+      });
+    });
+
+    describe('getSessionContext', () => {
+      test('should return session context when session exists', async () => {
+        const userId = '628123456789@c.us';
+
+        const context = await dbService.getSessionContext(userId);
+
+        expect(context).toBeDefined();
+        expect(mockPrisma.session.findUnique).toHaveBeenCalledWith({
+          where: { userId },
+          select: { context: true }
+        });
+      });
+
+      test('should return empty object when session not found', async () => {
+        const userId = '628nonexistent@c.us';
+        mockPrisma.session.findUnique.mockResolvedValueOnce(null);
+
+        const context = await dbService.getSessionContext(userId);
+
+        expect(context).toEqual({});
+      });
+
+      test('should return empty object on error', async () => {
+        const userId = '628test@c.us';
+        mockPrisma.session.findUnique.mockRejectedValueOnce(new Error('DB Error'));
+
+        const context = await dbService.getSessionContext(userId);
+
+        expect(context).toEqual({});
+      });
+    });
+
+    describe('cleanupOldSessions', () => {
+      test('should delete sessions older than specified days', async () => {
+        const daysInactive = 7;
+
+        const result = await dbService.cleanupOldSessions(daysInactive);
+
+        expect(mockPrisma.session.findMany).toHaveBeenCalled();
+        expect(mockPrisma.session.deleteMany).toHaveBeenCalled();
+        expect(result).toBeDefined();
+      });
+
+      test('should throw errors on failure', async () => {
+        mockPrisma.session.findMany.mockRejectedValueOnce(new Error('Cleanup Error'));
+
+        await expect(dbService.cleanupOldSessions(7)).rejects.toThrow('Cleanup Error');
+      });
     });
   });
 
