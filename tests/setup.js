@@ -9,15 +9,15 @@ process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://test:test@l
 process.env.GROQ_API_KEY = process.env.GROQ_API_KEY || 'test_groq_key';
 process.env.GROQ_MODEL = 'llama-3.3-70b-versatile';
 
-// Mock console methods to reduce noise during tests (optional)
+// Mock console methods to reduce noise during tests
 global.console = {
   ...console,
-  // Uncomment to suppress logs during tests
-  // log: jest.fn(),
-  // debug: jest.fn(),
-  // info: jest.fn(),
-  // warn: jest.fn(),
-  error: console.error, // Keep errors visible
+  // Suppress logs during tests for cleaner output
+  log: () => {},
+  debug: () => {},
+  info: () => {},
+  warn: () => {},
+  error: () => {}, // Suppress error logs from intentional error test cases
 };
 
 // Global test utilities
