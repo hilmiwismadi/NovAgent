@@ -41,13 +41,38 @@ export class CalendarSyncService {
       const duration = options.duration || 60; // minutes
       const endDate = new Date(meetingDate.getTime() + duration * 60 * 1000);
 
+      // Build description with conversation context
+      const eventName = user.event || user.instansi || 'Event';
+      const description = [
+        `📋 Meeting - ${eventName}`,
+        '',
+        '👤 Contact:',
+        `   Name: ${user.nama || 'N/A'}`,
+        `   Organization: ${user.instansi || 'N/A'}`,
+        `   WhatsApp: ${user.id}`,
+        '',
+        '🎫 Event Details:',
+        `   Event: ${user.event || 'TBD'}`,
+        `   Expected Capacity: ${user.capacity ? `${user.capacity.toLocaleString('id-ID')} pax` : 'TBD'}`,
+        `   Ticket Price: ${user.ticketPrice ? `Rp ${user.ticketPrice.toLocaleString('id-ID')}` : 'TBD'}`,
+        '',
+        '💼 Discussion Topics:',
+        `   - MoU and contract terms`,
+        `   - Platform features and demo`,
+        `   - Pricing negotiation`,
+        `   - Timeline and implementation`,
+        ''
+      ];
+
+      if (options.notes) {
+        description.push('📝 Notes:', `   ${options.notes}`, '');
+      }
+
+      description.push('🔗 Quick Actions:', `   View in CRM: [Dashboard Link]`);
+
       const eventData = {
-        summary: `Meeting: ${user.nama || user.id} - ${user.instansi || 'NovaTix Consultation'}`,
-        description: `Meeting appointment with ${user.nama || user.id}\n` +
-                    `Organization: ${user.instansi || 'N/A'}\n` +
-                    `Event: ${user.event || 'TBD'}\n` +
-                    `Notes: ${options.notes || 'Initial consultation'}\n\n` +
-                    `WhatsApp: ${user.id}`,
+        summary: `📋 MoU Meeting: ${user.nama || user.id} - ${eventName}`,
+        description: description.join('\n'),
         start: meetingDate,
         end: endDate,
         location: options.location || 'NovaTix Office / Video Call',
@@ -97,19 +122,62 @@ export class CalendarSyncService {
       // Ticket sale is usually an all-day event or specific time
       const endDate = options.endDate || new Date(ticketSaleDate.getTime() + 60 * 60 * 1000); // 1 hour
 
+      // Build detailed description with pricing context
+      const eventName = user.event || user.instansi || 'Event';
+      const description = [
+        `🎫 Pembukaan Tiket - ${eventName}`,
+        '',
+        '📊 Ticket Information:',
+        `   Ticket Price: ${user.ticketPrice ? `Rp ${user.ticketPrice.toLocaleString('id-ID')}` : 'TBD'}`,
+        `   Expected Sales: ${user.capacity ? `${user.capacity.toLocaleString('id-ID')} tickets` : 'TBD'}`,
+        `   Revenue Target: ${user.ticketPrice && user.capacity ? `Rp ${(user.ticketPrice * user.capacity).toLocaleString('id-ID')}` : 'TBD'}`,
+        `   Pricing Scheme: ${user.pricingScheme || 'Standard'}`,
+        '',
+        '👤 Event Organizer:',
+        `   Name: ${user.nama || 'N/A'}`,
+        `   Organization: ${user.instansi || 'N/A'}`,
+        `   Contact: ${user.id}`,
+        ''
+      ];
+
+      // Add contact persons if available
+      if (user.cpFirst || user.cpSecond) {
+        description.push('📞 Contact Persons:');
+        if (user.cpFirst) description.push(`   CP 1: ${user.cpFirst}`);
+        if (user.cpSecond) description.push(`   CP 2: ${user.cpSecond}`);
+        description.push('');
+      }
+
+      // Add social media if available
+      if (user.igEventLink || user.igLink) {
+        description.push('📱 Social Media:');
+        if (user.igEventLink) description.push(`   Event IG: ${user.igEventLink}`);
+        if (user.igLink) description.push(`   Organizer IG: ${user.igLink}`);
+        description.push('');
+      }
+
+      description.push(
+        '✅ Pre-Launch Checklist:',
+        '   [ ] Platform setup complete',
+        '   [ ] Payment gateway tested',
+        '   [ ] Event page live',
+        '   [ ] Marketing materials ready',
+        '   [ ] Customer support prepared',
+        ''
+      );
+
+      if (options.notes) {
+        description.push('📝 Notes:', `   ${options.notes}`, '');
+      }
+
+      description.push('🔗 Dashboard: [View Event Details]');
+
       const eventData = {
-        summary: `🎫 Ticket Sale Opens: ${user.event || user.instansi || 'Event'}`,
-        description: `Ticket sale starts for ${user.event || 'event'}\n` +
-                    `Organizer: ${user.instansi || 'N/A'}\n` +
-                    `Ticket Price: Rp ${(user.ticketPrice || 0).toLocaleString('id-ID')}\n` +
-                    `Capacity: ${user.capacity || 'TBD'} pax\n` +
-                    `Pricing Scheme: ${user.pricingScheme || 'TBD'}\n\n` +
-                    `Contact: ${user.nama || user.id}\n` +
-                    `WhatsApp: ${user.id}\n\n` +
-                    `Notes: ${options.notes || 'Ticket sale launch'}`,
+        summary: `🎫 Pembukaan Tiket: ${eventName}`,
+        description: description.join('\n'),
         start: ticketSaleDate,
         end: endDate,
-        location: options.location || 'Online Platform',
+        location: options.location || 'Online - NovaTix Platform',
         attendees: options.attendees || [],
         reminders: {
           useDefault: false,
@@ -157,22 +225,84 @@ export class CalendarSyncService {
       const duration = options.duration || 240; // minutes
       const endDate = new Date(eventDayDate.getTime() + duration * 60 * 1000);
 
+      // Build comprehensive event description
+      const eventName = user.event || user.instansi || 'Event Day';
+      const venue = options.venue || user.eventDayVenue || 'TBD';
+
+      const description = [
+        `🎉 Hari Konser/Event - ${eventName}`,
+        '',
+        '📍 Venue Information:',
+        `   Location: ${venue}`,
+        `   Expected Attendance: ${user.capacity ? `${user.capacity.toLocaleString('id-ID')} attendees` : 'TBD'}`,
+        `   Event Type: ${user.event || 'Concert/Event'}`,
+        '',
+        '🎫 Ticketing Summary:',
+        `   Ticket Price: ${user.ticketPrice ? `Rp ${user.ticketPrice.toLocaleString('id-ID')}` : 'N/A'}`,
+        `   Total Capacity: ${user.capacity ? `${user.capacity.toLocaleString('id-ID')} tickets` : 'TBD'}`,
+        `   Expected Revenue: ${user.ticketPrice && user.capacity ? `Rp ${(user.ticketPrice * user.capacity).toLocaleString('id-ID')}` : 'TBD'}`,
+        '',
+        '👤 Event Organizer:',
+        `   Organization: ${user.instansi || 'N/A'}`,
+        `   PIC: ${user.pic || user.nama || 'N/A'}`,
+        ''
+      ];
+
+      // Add contact persons
+      if (user.cpFirst || user.cpSecond) {
+        description.push('📞 On-Site Contacts:');
+        if (user.cpFirst) description.push(`   CP 1: ${user.cpFirst}`);
+        if (user.cpSecond) description.push(`   CP 2: ${user.cpSecond}`);
+        description.push(`   WhatsApp: ${user.id}`);
+        description.push('');
+      }
+
+      // Add social media
+      if (user.igEventLink || user.igLink) {
+        description.push('📱 Social Media:');
+        if (user.igEventLink) description.push(`   Event IG: ${user.igEventLink}`);
+        if (user.igLink) description.push(`   Organizer IG: ${user.igLink}`);
+        description.push('');
+      }
+
+      // Add event day checklist
+      description.push(
+        '✅ Event Day Checklist:',
+        '   [ ] Venue setup complete',
+        '   [ ] Ticketing system operational',
+        '   [ ] QR scanners ready',
+        '   [ ] Staff briefed',
+        '   [ ] Emergency protocols in place',
+        '   [ ] Customer support on standby',
+        ''
+      );
+
+      // Add technical requirements
+      description.push(
+        '⚙️ Technical Setup:',
+        '   [ ] Internet connection verified',
+        '   [ ] Backup devices ready',
+        '   [ ] Payment gateway active',
+        '   [ ] Real-time dashboard monitoring',
+        ''
+      );
+
+      if (options.notes) {
+        description.push('📝 Additional Notes:', `   ${options.notes}`, '');
+      }
+
+      description.push(
+        '🔗 Resources:',
+        '   Dashboard: [Real-time Event Monitoring]',
+        '   Support: [Emergency Contact]'
+      );
+
       const eventData = {
-        summary: `🎉 EVENT: ${user.event || user.instansi || 'Event Day'}`,
-        description: `Event: ${user.event || 'TBD'}\n` +
-                    `Organizer: ${user.instansi || user.nama || 'N/A'}\n` +
-                    `Capacity: ${user.capacity || 'TBD'} attendees\n` +
-                    `Ticket Price: Rp ${(user.ticketPrice || 0).toLocaleString('id-ID')}\n\n` +
-                    `Venue: ${options.venue || 'TBD'}\n` +
-                    `Instagram: ${user.igEventLink || user.igLink || 'N/A'}\n\n` +
-                    `Contact Person 1: ${user.cpFirst || 'N/A'}\n` +
-                    `Contact Person 2: ${user.cpSecond || 'N/A'}\n` +
-                    `PIC: ${user.pic || 'N/A'}\n\n` +
-                    `Notes: ${options.notes || ''}\n\n` +
-                    `WhatsApp: ${user.id}`,
+        summary: `🎉 Hari Konser: ${eventName}`,
+        description: description.join('\n'),
         start: eventDayDate,
         end: endDate,
-        location: options.venue || user.eventDayVenue || 'TBD',
+        location: venue,
         attendees: options.attendees || [],
         reminders: {
           useDefault: false,
