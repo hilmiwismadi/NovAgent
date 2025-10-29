@@ -78,7 +78,6 @@ Perfect! I can see the Backend API and Frontend are running successfully. The Wh
 - ✅ **Google Calendar:** Credentials configured
 - ✅ **Whitelisted Numbers:**
   - 6287785917029@c.us
-  - 6281717407674@c.us
 
 ---
 

@@ -111,20 +111,162 @@ class WhatsAppController {
    */
   async getStatus(req, res) {
     try {
-      // Check if there are recent queue files (indicates wa-bot might not be running)
+      // Check if QR code exists (means not connected)
+      const qrFilePath = path.join(this.queueDir, 'qr-code.json');
+      const hasQR = fs.existsSync(qrFilePath);
+
+      // Check pending messages
       const files = fs.readdirSync(this.queueDir);
-      const pendingMessages = files.filter(f => f.endsWith('.json')).length;
+      const pendingMessages = files.filter(f => f.startsWith('msg_') && f.endsWith('.json')).length;
+
+      // If QR exists, WhatsApp is disconnected waiting for scan
+      // Otherwise, it's connected
+      const isConnected = !hasQR;
 
       res.json({
-        ready: pendingMessages === 0,
-        status: pendingMessages === 0 ? 'connected' : 'disconnected',
+        ready: isConnected,
+        status: isConnected ? 'connected' : 'disconnected',
         pendingMessages: pendingMessages,
-        note: 'Run wa-bot separately with: npm run start:wa'
+        note: hasQR ? 'Scan QR code to connect' : 'WhatsApp connected'
       });
     } catch (error) {
       console.error('[WhatsApp Controller] Error getting status:', error);
       res.status(500).json({
         error: 'Failed to get status',
+        message: error.message
+      });
+    }
+  }
+
+  /**
+   * GET /api/dashboard/whatsapp/qr - Get QR code for WhatsApp authentication
+   */
+  async getQRCode(req, res) {
+    try {
+      const qrFilePath = path.join(this.queueDir, 'qr-code.json');
+
+      if (!fs.existsSync(qrFilePath)) {
+        return res.json({
+          available: false,
+          message: 'No QR code available. WhatsApp might already be authenticated.',
+          status: 'authenticated'
+        });
+      }
+
+      const qrData = JSON.parse(fs.readFileSync(qrFilePath, 'utf8'));
+
+      res.json({
+        available: true,
+        qr: qrData.qr,
+        timestamp: qrData.timestamp,
+        status: qrData.status
+      });
+    } catch (error) {
+      console.error('[WhatsApp Controller] Error getting QR code:', error);
+      res.status(500).json({
+        error: 'Failed to get QR code',
+        message: error.message
+      });
+    }
+  }
+
+  /**
+   * GET /api/dashboard/whatsapp/info - Get connected WhatsApp account info
+   */
+  async getInfo(req, res) {
+    try {
+      // Send command to WhatsApp bot
+      const commandFilePath = path.join(this.queueDir, 'wa-commands.json');
+      fs.writeFileSync(commandFilePath, JSON.stringify({
+        lastCommand: 'getInfo',
+        timestamp: new Date().toISOString()
+      }));
+
+      // Wait for result (max 10 seconds)
+      const resultFilePath = path.join(this.queueDir, 'wa-command-result.json');
+      let attempts = 0;
+      const maxAttempts = 20; // 10 seconds (20 * 500ms)
+
+      const waitForResult = () => {
+        return new Promise((resolve, reject) => {
+          const interval = setInterval(() => {
+            attempts++;
+
+            if (fs.existsSync(resultFilePath)) {
+              const result = JSON.parse(fs.readFileSync(resultFilePath, 'utf8'));
+              if (result.command === 'getInfo') {
+                clearInterval(interval);
+                fs.unlinkSync(resultFilePath); // Clean up
+                resolve(result.result);
+              }
+            }
+
+            if (attempts >= maxAttempts) {
+              clearInterval(interval);
+              reject(new Error('Timeout waiting for WhatsApp bot response'));
+            }
+          }, 500);
+        });
+      };
+
+      const info = await waitForResult();
+      res.json(info);
+
+    } catch (error) {
+      console.error('[WhatsApp Controller] Error getting info:', error);
+      res.status(500).json({
+        error: 'Failed to get WhatsApp info',
+        message: error.message
+      });
+    }
+  }
+
+  /**
+   * POST /api/dashboard/whatsapp/logout - Logout and disconnect WhatsApp
+   */
+  async logout(req, res) {
+    try {
+      // Send logout command to WhatsApp bot
+      const commandFilePath = path.join(this.queueDir, 'wa-commands.json');
+      fs.writeFileSync(commandFilePath, JSON.stringify({
+        lastCommand: 'logout',
+        timestamp: new Date().toISOString()
+      }));
+
+      // Wait for result
+      const resultFilePath = path.join(this.queueDir, 'wa-command-result.json');
+      let attempts = 0;
+      const maxAttempts = 20;
+
+      const waitForResult = () => {
+        return new Promise((resolve, reject) => {
+          const interval = setInterval(() => {
+            attempts++;
+
+            if (fs.existsSync(resultFilePath)) {
+              const result = JSON.parse(fs.readFileSync(resultFilePath, 'utf8'));
+              if (result.command === 'logout') {
+                clearInterval(interval);
+                fs.unlinkSync(resultFilePath);
+                resolve(result.result);
+              }
+            }
+
+            if (attempts >= maxAttempts) {
+              clearInterval(interval);
+              reject(new Error('Timeout waiting for logout response'));
+            }
+          }, 500);
+        });
+      };
+
+      const result = await waitForResult();
+      res.json(result);
+
+    } catch (error) {
+      console.error('[WhatsApp Controller] Error during logout:', error);
+      res.status(500).json({
+        error: 'Failed to logout',
         message: error.message
       });
     }

@@ -102,13 +102,11 @@ app.listen(PORT, async () => {
 // Handle graceful shutdown
 process.on('SIGINT', async () => {
   console.log('\n\n👋 Shutting down dashboard server...');
-  await waClientManager.stop();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   console.log('\n\n👋 Shutting down dashboard server...');
-  await waClientManager.stop();
   process.exit(0);
 });
 
