@@ -86,6 +86,7 @@ model Conversation {
   agentResponse   String   @db.Text
   toolsUsed       Json?    @db.JsonB
   contextSnapshot Json?    @db.JsonB
+  metadata        Json?    @db.JsonB        // Store message source info (dashboard/bot)
   timestamp       DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
