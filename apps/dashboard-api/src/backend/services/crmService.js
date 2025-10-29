@@ -2,18 +2,21 @@ import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
 import path from 'path';
 
-const prisma = new PrismaClient();
-
 /**
  * CRM Service - Business logic for dashboard CRM operations
  */
 class CRMService {
+  constructor(prismaClient = null, llmFactory = null) {
+    this.prisma = prismaClient || new PrismaClient();
+    this.llmFactory = llmFactory;
+  }
+
   /**
    * Get all users/clients for dashboard table
    */
   async getAllClients() {
     try {
-      const clients = await prisma.user.findMany({
+      const clients = await this.prisma.user.findMany({
         orderBy: {
           createdAt: 'desc'
         },
@@ -58,7 +61,7 @@ class CRMService {
    */
   async getClientById(id) {
     try {
-      const client = await prisma.user.findUnique({
+      const client = await this.prisma.user.findUnique({
         where: { id },
         include: {
           conversations: {
@@ -82,7 +85,7 @@ class CRMService {
    */
   async createClient(data) {
     try {
-      const client = await prisma.user.create({
+      const client = await this.prisma.user.create({
         data
       });
       console.log(`[CRM Service] Created new client: ${client.id}`);
@@ -98,7 +101,7 @@ class CRMService {
    */
   async updateClient(id, data) {
     try {
-      const client = await prisma.user.update({
+      const client = await this.prisma.user.update({
         where: { id },
         data
       });
@@ -115,7 +118,7 @@ class CRMService {
    */
   async deleteClient(id) {
     try {
-      await prisma.user.delete({
+      await this.prisma.user.delete({
         where: { id }
       });
       console.log(`[CRM Service] Deleted client: ${id}`);
@@ -131,7 +134,7 @@ class CRMService {
    */
   async getConversations(userId, limit = 50) {
     try {
-      const conversations = await prisma.conversation.findMany({
+      const conversations = await this.prisma.conversation.findMany({
         where: { userId },
         orderBy: {
           timestamp: 'desc'
@@ -150,7 +153,7 @@ class CRMService {
    */
   async getConversationSummary(userId) {
     try {
-      const conversations = await prisma.conversation.findMany({
+      const conversations = await this.prisma.conversation.findMany({
         where: { userId },
         orderBy: {
           timestamp: 'asc' // Oldest first for chronological summary
@@ -166,7 +169,7 @@ class CRMService {
       }
 
       // Get user info
-      const user = await prisma.user.findUnique({
+      const user = await this.prisma.user.findUnique({
         where: { id: userId },
         select: {
           nama: true,
@@ -200,13 +203,17 @@ class CRMService {
         .join('\n\n');
 
       // Call LLM to generate intelligent summary
-      const { ChatGroq } = await import("@langchain/groq");
-      
-      const llm = new ChatGroq({
-        apiKey: process.env.GROQ_API_KEY,
-        model: "llama-3.3-70b-versatile",
-        temperature: 0.3,
-      });
+      let llm;
+      if (this.llmFactory) {
+        llm = this.llmFactory();
+      } else {
+        const { ChatGroq } = await import("@langchain/groq");
+        llm = new ChatGroq({
+          apiKey: process.env.GROQ_API_KEY,
+          model: "llama-3.3-70b-versatile",
+          temperature: 0.3,
+        });
+      }
 
       const summaryPrompt = `Kamu adalah asisten CRM yang menganalisis riwayat percakapan antara NovaTix (platform tiket event) dengan calon klien.
 
@@ -319,17 +326,17 @@ Buatlah ringkasan yang profesional, ringkas (maksimal 200 kata), dan actionable.
    */
   async getStatistics() {
     try {
-      const totalClients = await prisma.user.count();
-      const activeConversations = await prisma.session.count();
+      const totalClients = await this.prisma.user.count();
+      const activeConversations = await this.prisma.session.count();
 
-      const statusCounts = await prisma.user.groupBy({
+      const statusCounts = await this.prisma.user.groupBy({
         by: ['status'],
         _count: {
           status: true
         }
       });
 
-      const dealStatusCounts = await prisma.user.groupBy({
+      const dealStatusCounts = await this.prisma.user.groupBy({
         by: ['dealStatus'],
         _count: {
           dealStatus: true
@@ -356,7 +363,7 @@ Buatlah ringkasan yang profesional, ringkas (maksimal 200 kata), dan actionable.
       console.log(`[CRM Service] Resetting client context: ${userId}`);
 
       // Get client info before reset
-      const client = await prisma.user.findUnique({
+      const client = await this.prisma.user.findUnique({
         where: { id: userId },
         select: {
           nama: true,
@@ -376,18 +383,18 @@ Buatlah ringkasan yang profesional, ringkas (maksimal 200 kata), dan actionable.
       const oldOrg = client.instansi;
 
       // Delete all conversations (clear history)
-      await prisma.conversation.deleteMany({
+      await this.prisma.conversation.deleteMany({
         where: { userId: userId }
       });
 
       // Delete session (to clear context)
-      await prisma.session.deleteMany({
+      await this.prisma.session.deleteMany({
         where: { userId: userId }
       });
 
       // Clear user context fields but KEEP the user record
       // This prevents the bot from recreating a fresh user and avoids data inconsistency
-      await prisma.user.update({
+      await this.prisma.user.update({
         where: { id: userId },
         data: {
           nama: null,
@@ -447,4 +454,6 @@ Buatlah ringkasan yang profesional, ringkas (maksimal 200 kata), dan actionable.
   }
 }
 
+// Export both the class and a singleton instance
+export { CRMService };
 export default new CRMService();

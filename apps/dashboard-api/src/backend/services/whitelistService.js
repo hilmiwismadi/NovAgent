@@ -9,13 +9,14 @@ const __dirname = path.dirname(__filename);
 // Load .env from project root
 dotenv.config({ path: path.resolve(__dirname, '../../../../../.env') });
 
-const prisma = new PrismaClient();
-
 /**
  * Whitelist Service
  * Handles business logic for WhatsApp whitelist management
  */
 class WhitelistService {
+  constructor(prismaClient = null) {
+    this.prisma = prismaClient || new PrismaClient();
+  }
   /**
    * Get all whitelist entries
    * @param {string} type - Optional filter by type (client/internal)
@@ -24,7 +25,7 @@ class WhitelistService {
     try {
       const where = type ? { type } : {};
 
-      const entries = await prisma.whitelist.findMany({
+      const entries = await this.prisma.whitelist.findMany({
         where,
         orderBy: [
           { type: 'asc' },
@@ -44,7 +45,7 @@ class WhitelistService {
    */
   async getByPhoneNumber(phoneNumber) {
     try {
-      const entry = await prisma.whitelist.findUnique({
+      const entry = await this.prisma.whitelist.findUnique({
         where: { phoneNumber }
       });
 
@@ -80,7 +81,7 @@ class WhitelistService {
       }
 
       // Create new entry
-      const entry = await prisma.whitelist.create({
+      const entry = await this.prisma.whitelist.create({
         data: {
           phoneNumber,
           type,
@@ -103,7 +104,7 @@ class WhitelistService {
    */
   async updateWhitelist(phoneNumber, data) {
     try {
-      const entry = await prisma.whitelist.update({
+      const entry = await this.prisma.whitelist.update({
         where: { phoneNumber },
         data: {
           ...data,
@@ -124,7 +125,7 @@ class WhitelistService {
    */
   async removeFromWhitelist(phoneNumber) {
     try {
-      const entry = await prisma.whitelist.delete({
+      const entry = await this.prisma.whitelist.delete({
         where: { phoneNumber }
       });
 
@@ -146,7 +147,7 @@ class WhitelistService {
         where.type = type;
       }
 
-      const entry = await prisma.whitelist.findFirst({ where });
+      const entry = await this.prisma.whitelist.findFirst({ where });
       return entry !== null;
     } catch (error) {
       console.error('[WhitelistService] Error in isWhitelisted:', error);
@@ -159,11 +160,11 @@ class WhitelistService {
    */
   async getStats() {
     try {
-      const totalClients = await prisma.whitelist.count({
+      const totalClients = await this.prisma.whitelist.count({
         where: { type: 'client' }
       });
 
-      const totalInternal = await prisma.whitelist.count({
+      const totalInternal = await this.prisma.whitelist.count({
         where: { type: 'internal' }
       });
 
@@ -185,7 +186,7 @@ class WhitelistService {
    */
   async getPhoneNumbersByType(type) {
     try {
-      const entries = await prisma.whitelist.findMany({
+      const entries = await this.prisma.whitelist.findMany({
         where: { type },
         select: { phoneNumber: true }
       });
@@ -198,4 +199,6 @@ class WhitelistService {
   }
 }
 
+// Export both the class and a singleton instance
+export { WhitelistService };
 export default new WhitelistService();

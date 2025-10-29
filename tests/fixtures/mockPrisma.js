@@ -118,6 +118,10 @@ class MockPrismaClient {
       return this.users[index];
     }),
 
+    groupBy: jest.fn(async ({ by, _count } = {}) => {
+      return [];
+    }),
+
     upsert: jest.fn(async ({ where, create, update }) => {
       const existing = this.users.find(u => u.id === where.id);
       if (existing) {
@@ -205,6 +209,24 @@ class MockPrismaClient {
       }
       return result.length;
     })
+,
+
+    deleteMany: jest.fn(async ({ where } = {}) => {
+      let toDelete = [...this.conversations];
+
+      if (where?.userId) {
+        toDelete = toDelete.filter(c => c.userId === where.userId);
+      }
+
+      toDelete.forEach(conversation => {
+        const index = this.conversations.findIndex(c => c.id === conversation.id);
+        if (index !== -1) {
+          this.conversations.splice(index, 1);
+        }
+      });
+
+      return { count: toDelete.length };
+    })
   };
 
   // Session operations
@@ -241,6 +263,10 @@ class MockPrismaClient {
         return this.session.update({ where, data: update });
       }
       return this.session.create({ data: create });
+    }),
+
+    count: jest.fn(async (query = {}) => {
+      return this.sessions.length;
     }),
 
     delete: jest.fn(async ({ where }) => {
