@@ -50,7 +50,7 @@
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
 }
 
-.qr-header h3 {
+.qr-header h2 {
   margin: 0;
   color: var(--gray-900);
   font-size: 1.25rem;
@@ -58,42 +58,52 @@
   line-height: 1.25;
 }
 
-.qr-status {
+.status-badge {
   display: flex;
   align-items: center;
   gap: var(--spacing-2);
   font-size: 0.875rem;
   font-weight: 500;
+  padding: var(--spacing-2) var(--spacing-3);
+  border-radius: var(--radius-md);
+  border: 1px solid;
 }
 
-.status-connected {
+.status-badge.connected {
+  background: var(--success-100);
   color: var(--success-600);
+  border-color: var(--success);
 }
 
-.status-disconnected {
+.status-badge.disconnected {
+  background: var(--danger-100);
   color: var(--danger-600);
+  border-color: var(--danger);
 }
 
-.status-connecting {
+.status-badge:not(.connected):not(.disconnected) {
+  background: var(--warning-100);
   color: var(--warning-600);
+  border-color: var(--warning);
 }
 
-.status-dot {
+.status-badge::before {
+  content: '';
   width: 8px;
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
-.status-connected .status-dot {
+.status-badge.connected::before {
   background: var(--success-600);
 }
 
-.status-disconnected .status-dot {
+.status-badge.disconnected::before {
   background: var(--danger-600);
 }
 
-.status-connecting .status-dot {
+.status-badge:not(.connected):not(.disconnected)::before {
   background: var(--warning-600);
   animation: pulse 2s infinite;
 }
@@ -112,40 +122,17 @@
   text-align: center;
 }
 
-.qr-code-wrapper {
-  display: inline-block;
-  padding: var(--spacing-6);
-  background: var(--white);
-  border: 1px solid var(--gray-200);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  margin-bottom: var(--spacing-6);
-  position: relative;
-}
-
-.qr-code-wrapper canvas {
-  display: block !important;
-  border-radius: var(--radius-md);
-}
-
 .qr-instructions {
   max-width: 400px;
-  margin: 0 auto;
+  margin: 0 auto var(--spacing-8) auto;
 }
 
-.qr-instructions h4 {
-  margin: 0 0 var(--spacing-3) 0;
+.qr-instructions h3 {
+  margin: 0 0 var(--spacing-4) 0;
   color: var(--gray-900);
   font-size: 1rem;
   font-weight: 600;
   line-height: 1.25;
-}
-
-.qr-instructions p {
-  margin: 0 0 var(--spacing-4) 0;
-  color: var(--gray-600);
-  font-size: 0.875rem;
-  line-height: 1.5;
 }
 
 .qr-instructions ol {
@@ -165,109 +152,84 @@
   margin-bottom: 0;
 }
 
-.qr-refresh-section {
-  padding: var(--spacing-6) var(--spacing-8);
-  border-top: 1px solid var(--gray-200);
-  background: var(--gray-50);
-  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+.qr-code-display {
+  display: inline-block;
+  padding: var(--spacing-6);
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.qr-code-display canvas {
+  display: block !important;
+  border-radius: var(--radius-md);
+}
+
+.qr-timestamp {
+  margin: var(--spacing-4) 0 0 0;
+  color: var(--gray-500);
+  font-size: 0.75rem;
+  font-style: italic;
+}
+
+.qr-note {
+  margin: var(--spacing-2) 0 0 0;
+  color: var(--gray-500);
+  font-size: 0.75rem;
+}
+
+.qr-not-available {
+  padding: var(--spacing-8);
   text-align: center;
 }
 
-.qr-refresh-hint {
-  margin-bottom: var(--spacing-4);
+.qr-not-available h3 {
+  margin: 0 0 var(--spacing-6) 0;
+  color: var(--success-600);
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.connected-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-4);
+  margin: var(--spacing-6) 0;
+}
+
+.info-card {
+  background: var(--gray-50);
+  padding: var(--spacing-4);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+}
+
+.info-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--gray-600);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--spacing-1);
+}
+
+.info-value {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--gray-900);
+  word-break: break-word;
+}
+
+.device-info {
+  margin: var(--spacing-6) 0;
   color: var(--gray-600);
   font-size: 0.875rem;
   font-style: italic;
 }
 
-.refresh-qr-btn {
-  padding: var(--spacing-3) var(--spacing-6);
-  background: var(--primary);
-  color: var(--white);
-  border: 1px solid var(--primary);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  font-size: 0.875rem;
-  font-weight: 500;
-  transition: all 0.15s ease-in-out;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-2);
-}
-
-.refresh-qr-btn:hover {
-  background: var(--primary-700);
-  border-color: var(--primary-700);
-  box-shadow: var(--shadow-sm);
-}
-
-.refresh-qr-btn:active {
-  background: var(--primary-700);
-  transform: translateY(1px);
-}
-
-.refresh-qr-btn:disabled {
-  background: var(--gray-300);
-  color: var(--gray-500);
-  border-color: var(--gray-300);
-  cursor: not-allowed;
-}
-
-.connected-message {
-  padding: var(--spacing-8);
-  text-align: center;
-  color: var(--success-600);
-}
-
-.connected-message svg {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto var(--spacing-4) auto;
-  color: var(--success-600);
-}
-
-.connected-message h4 {
-  margin: 0 0 var(--spacing-2) 0;
-  font-size: 1.125rem;
-  font-weight: 600;
-  line-height: 1.25;
-}
-
-.connected-message p {
-  margin: 0;
-  font-size: 0.875rem;
-  line-height: 1.5;
-}
-
-.error-message {
-  padding: var(--spacing-8);
-  text-align: center;
-  color: var(--danger-600);
-}
-
-.error-message svg {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto var(--spacing-4) auto;
-  color: var(--danger-600);
-}
-
-.error-message h4 {
-  margin: 0 0 var(--spacing-2) 0;
-  font-size: 1.125rem;
-  font-weight: 600;
-  line-height: 1.25;
-}
-
-.error-message p {
-  margin: 0 0 var(--spacing-4) 0;
-  font-size: 0.875rem;
-  line-height: 1.5;
-}
-
-.error-retry-btn {
+.disconnect-btn {
   padding: var(--spacing-3) var(--spacing-6);
   background: var(--danger);
   color: var(--white);
@@ -283,13 +245,42 @@
   justify-content: center;
 }
 
-.error-retry-btn:hover {
+.disconnect-btn:hover:not(:disabled) {
   background: var(--danger-600);
   border-color: var(--danger-600);
 }
 
-.error-retry-btn:active {
+.disconnect-btn:active {
   transform: translateY(1px);
+}
+
+.disconnect-btn:disabled {
+  background: var(--gray-300);
+  color: var(--gray-500);
+  border-color: var(--gray-300);
+  cursor: not-allowed;
+}
+
+.qr-footer {
+  padding: var(--spacing-6) var(--spacing-8);
+  border-top: 1px solid var(--gray-200);
+  background: var(--gray-50);
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+  text-align: center;
+}
+
+.help-text {
+  margin: 0 0 var(--spacing-2) 0;
+  color: var(--gray-600);
+  font-size: 0.875rem;
+  font-style: italic;
+}
+
+.pending-messages {
+  margin: 0;
+  color: var(--warning-600);
+  font-size: 0.875rem;
+  font-weight: 500;
 }
 
 /* Responsive Design */
@@ -307,59 +298,64 @@
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   }
 
-  .qr-header h3 {
+  .qr-header h2 {
     font-size: 1.125rem;
+  }
+
+  .status-badge {
+    font-size: 0.8125rem;
+    padding: var(--spacing-1) var(--spacing-2);
   }
 
   .qr-content {
     padding: var(--spacing-6) var(--spacing-4);
   }
 
-  .qr-code-wrapper {
-    padding: var(--spacing-4);
-  }
-
   .qr-instructions {
-    max-width: 100%;
+    margin-bottom: var(--spacing-6);
   }
 
-  .qr-instructions h4 {
+  .qr-instructions h3 {
     font-size: 0.9375rem;
   }
 
-  .qr-instructions p,
   .qr-instructions li {
     font-size: 0.8125rem;
   }
 
-  .qr-refresh-section {
-    padding: var(--spacing-4) var(--spacing-5);
-    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  .qr-code-display {
+    padding: var(--spacing-4);
   }
 
-  .refresh-qr-btn {
+  .qr-not-available {
+    padding: var(--spacing-6) var(--spacing-4);
+  }
+
+  .qr-not-available h3 {
+    font-size: 1.125rem;
+  }
+
+  .connected-info {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-3);
+  }
+
+  .info-card {
+    padding: var(--spacing-3);
+  }
+
+  .disconnect-btn {
     padding: var(--spacing-3) var(--spacing-5);
     font-size: 0.8125rem;
   }
 
-  .connected-message,
-  .error-message {
-    padding: var(--spacing-6) var(--spacing-4);
+  .qr-footer {
+    padding: var(--spacing-4) var(--spacing-5);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   }
 
-  .connected-message svg,
-  .error-message svg {
-    width: 48px;
-    height: 48px;
-  }
-
-  .connected-message h4,
-  .error-message h4 {
-    font-size: 1rem;
-  }
-
-  .connected-message p,
-  .error-message p {
+  .help-text,
+  .pending-messages {
     font-size: 0.8125rem;
   }
 }
