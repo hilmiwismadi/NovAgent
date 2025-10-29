@@ -52,6 +52,7 @@ COPY packages/database/src ./src/database
 COPY packages/database/utils ./src/utils
 COPY packages/knowledge/src ./src/knowledge
 COPY packages/calendar/src ./packages/calendar/src
+COPY apps/dashboard-api/src/backend/services ./src/services
 
 # Generate Prisma Client
 RUN npx prisma generate

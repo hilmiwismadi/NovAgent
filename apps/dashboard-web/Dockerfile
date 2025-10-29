@@ -25,15 +25,18 @@ RUN npm run build
 # Stage 2: Serve with Nginx
 FROM nginx:alpine
 
+# Install curl for healthcheck
+RUN apk add --no-cache curl
+
 # Copy custom nginx config
 COPY infra/nginx/frontend.conf /etc/nginx/conf.d/default.conf
 
 # Copy built files from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Add healthcheck
+# Add healthcheck using curl (more reliable)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://localhost:80/ || exit 1
+    CMD curl -f http://localhost:80/ > /dev/null 2>&1 || exit 1
 
 # Expose port
 EXPOSE 80
