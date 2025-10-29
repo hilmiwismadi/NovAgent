@@ -75,14 +75,31 @@ class WhatsAppController {
       console.log(`[WhatsApp Controller] Message queued for ${whatsappId}`);
       console.log(`[WhatsApp Controller] Queue file: ${filename}`);
 
-      // Update lastContact (but don't save to conversation - wa-bot will handle that)
+      // Save admin message to conversation history and update lastContact
       try {
+        // Update lastContact
         await prisma.user.update({
           where: { id: whatsappId },
           data: { lastContact: new Date() }
         }).catch(() => {
           // User might not exist yet, that's ok
         });
+
+        // Save admin message to conversation history
+        await prisma.conversation.create({
+          data: {
+            userId: whatsappId,
+            userMessage: '', // Empty for admin-initiated messages
+            agentResponse: message,
+            metadata: {
+              source: 'dashboard',
+              sentAt: new Date().toISOString()
+            },
+            timestamp: new Date()
+          }
+        });
+
+        console.log('[WhatsApp Controller] Admin message saved to conversation history');
 
       } catch (dbError) {
         console.error('[WhatsApp Controller] DB update failed:', dbError);
