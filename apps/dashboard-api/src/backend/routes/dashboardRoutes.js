@@ -17,6 +17,7 @@ router.post('/clients', crmController.createClient.bind(crmController));
 router.put('/clients/:id', crmController.updateClient.bind(crmController));
 router.patch('/clients/:id', crmController.patchClient.bind(crmController));
 router.delete('/clients/:id', crmController.deleteClient.bind(crmController));
+router.post('/clients/:id/reset-context', crmController.resetClientContext.bind(crmController));
 
 // Conversation Management
 router.get('/conversations/:userId', crmController.getConversations.bind(crmController));
@@ -24,6 +25,9 @@ router.get('/conversations/:userId', crmController.getConversations.bind(crmCont
 // WhatsApp Integration
 router.post('/whatsapp/send', whatsappController.sendMessage.bind(whatsappController));
 router.get('/whatsapp/status', whatsappController.getStatus.bind(whatsappController));
+router.get('/whatsapp/qr', whatsappController.getQRCode.bind(whatsappController));
+router.get('/whatsapp/info', whatsappController.getInfo.bind(whatsappController));
+router.post('/whatsapp/logout', whatsappController.logout.bind(whatsappController));
 
 // Whitelist Management
 router.get('/whitelist', whitelistController.getAllWhitelist.bind(whitelistController));

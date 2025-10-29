@@ -145,6 +145,29 @@ class CRMController {
       });
     }
   }
+
+  /**
+   * POST /api/dashboard/clients/:id/reset-context - Reset client context
+   */
+  async resetClientContext(req, res) {
+    try {
+      const { id } = req.params;
+      const result = await crmService.resetClientContext(id);
+
+      console.log(`[CRM Controller] Client context reset for ${id}`);
+      res.json({
+        success: true,
+        message: 'Client context reset successfully',
+        ...result
+      });
+    } catch (error) {
+      console.error('[CRM Controller] Error in resetClientContext:', error);
+      res.status(500).json({
+        error: 'Failed to reset client context',
+        message: error.message
+      });
+    }
+  }
 }
 
 export default new CRMController();

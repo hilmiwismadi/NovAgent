@@ -176,6 +176,55 @@ class CRMService {
       throw error;
     }
   }
+
+  /**
+   * Reset client context - DELETE entire client record and all conversations
+   */
+  async resetClientContext(userId) {
+    try {
+      console.log(`[CRM Service] Deleting client and all data: ${userId}`);
+
+      // Get client info before deletion
+      const client = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          nama: true,
+          instansi: true,
+          _count: {
+            select: { conversations: true }
+          }
+        }
+      });
+
+      if (!client) {
+        throw new Error('Client not found');
+      }
+
+      const conversationCount = client._count.conversations;
+
+      // Delete all conversations first (foreign key constraint)
+      await prisma.conversation.deleteMany({
+        where: { userId: userId }
+      });
+
+      // Delete the user record completely
+      await prisma.user.delete({
+        where: { id: userId }
+      });
+
+      console.log(`[CRM Service] Client deleted: ${userId}, conversations: ${conversationCount}`);
+
+      return {
+        deletedConversations: conversationCount,
+        clientName: client.nama,
+        clientOrg: client.instansi,
+        deleted: true
+      };
+    } catch (error) {
+      console.error('[CRM Service] Error deleting client:', error);
+      throw error;
+    }
+  }
 }
 
 export default new CRMService();
