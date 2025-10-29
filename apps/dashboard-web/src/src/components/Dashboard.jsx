@@ -294,24 +294,24 @@ export default function Dashboard() {
             onClick={() => setActiveTab('crm')}
             className={`tab-btn ${activeTab === 'crm' ? 'active' : ''}`}
           >
-            📊 CRM
+            CRM
           </button>
           <button
             onClick={() => setActiveTab('whitelist')}
             className={`tab-btn ${activeTab === 'whitelist' ? 'active' : ''}`}
           >
-            📋 Whitelist
+            Whitelist
           </button>
           <button
             onClick={() => setActiveTab('whatsapp')}
             className={`tab-btn ${activeTab === 'whatsapp' ? 'active' : ''}`}
           >
-            📱 WhatsApp
+            WhatsApp
           </button>
         </div>
         {activeTab === 'crm' && (
           <button onClick={fetchClients} className="refresh-btn">
-            🔄 Refresh
+            Refresh
           </button>
         )}
       </header>
@@ -321,7 +321,7 @@ export default function Dashboard() {
         <>
           {/* Add Client Section */}
           <div className="add-client-section">
-            <h3>➕ Tambah Client Baru</h3>
+            <h3>Tambah Client Baru</h3>
             <p className="section-description">
               Client yang ditambahkan otomatis masuk ke whitelist agar bot bisa merespon chat mereka.
             </p>
@@ -344,7 +344,7 @@ export default function Dashboard() {
                   className="client-name-input"
                 />
                 <button type="submit" disabled={addingClient} className="client-add-btn">
-                  {addingClient ? '⏳ Menambah...' : '✅ Tambah Client'}
+                  {addingClient ? 'Menambah...' : 'Tambah Client'}
                 </button>
               </div>
             </form>
@@ -400,7 +400,7 @@ export default function Dashboard() {
                     className={`whitelist-toggle-btn ${isWhitelisted ? 'active' : 'inactive'}`}
                     title={isWhitelisted ? 'Klik untuk remove dari whitelist' : 'Klik untuk add ke whitelist'}
                   >
-                    {isWhitelisted ? '✅ Active' : '❌ Inactive'}
+                    {isWhitelisted ? 'Active' : 'Inactive'}
                   </button>
                 </td>
                 <td className="phone-cell">{formatPhone(client.id)}</td>
@@ -445,7 +445,6 @@ export default function Dashboard() {
                 <td className="meeting-date-cell">
                   {client.meetingDate ? (
                     <div className="meeting-date-display">
-                      <span className="meeting-date-icon">📅</span>
                       <span className="meeting-date-text">
                         {new Date(client.meetingDate).toLocaleString('id-ID', {
                           day: '2-digit',
@@ -499,14 +498,14 @@ export default function Dashboard() {
                       className="action-btn"
                       onClick={() => handleViewConversations(client)}
                     >
-                      💬 Chat
+                      Chat
                     </button>
                     <button
                       className="action-btn reset-btn"
                       onClick={() => handleResetContext(client)}
                       title="Reset conversation history & context"
                     >
-                      🔄 Reset
+                      Reset
                     </button>
                   </div>
                 </td>
@@ -540,9 +539,9 @@ export default function Dashboard() {
                     flexShrink: 0
                   }}
                 >
-                  {loadingSummary ? '⏳ Loading...' : '📋 Summary'}
+                  {loadingSummary ? 'Loading...' : 'Summary'}
                 </button>
-                <button onClick={() => setSelectedClient(null)}>✕</button>
+                <button onClick={() => setSelectedClient(null)}>×</button>
               </div>
             </div>
 
@@ -572,7 +571,7 @@ export default function Dashboard() {
                   borderBottom: '2px solid #4CAF50',
                   backgroundColor: '#e3f2fd'
                 }}>
-                  <h3 style={{ margin: 0, color: '#2c5282', fontSize: '18px' }}>📋 Conversation Summary</h3>
+                  <h3 style={{ margin: 0, color: '#2c5282', fontSize: '18px' }}>Conversation Summary</h3>
                   <button
                     onClick={() => setConversationSummary(null)}
                     style={{
@@ -590,7 +589,7 @@ export default function Dashboard() {
                       fontWeight: 'bold'
                     }}
                   >
-                    ✕
+                    ×
                   </button>
                 </div>
                 <div style={{
@@ -612,7 +611,7 @@ export default function Dashboard() {
                     borderTop: '1px solid #ccc',
                     backgroundColor: '#f0f7ff'
                   }}>
-                    📊 Total messages: {conversationSummary.totalMessages} |
+                    Total messages: {conversationSummary.totalMessages} |
                     Last updated: {new Date(conversationSummary.timestamp).toLocaleString('id-ID')}
                   </div>
                 )}
@@ -622,7 +621,7 @@ export default function Dashboard() {
             <div className="chat-history-container">
               {conversations.length === 0 ? (
                 <div className="no-messages-placeholder">
-                  <div className="no-messages-icon">💬</div>
+                  <div className="no-messages-icon">No Messages</div>
                   <p>No messages yet</p>
                   <span>Start a conversation below</span>
                 </div>
@@ -682,7 +681,7 @@ export default function Dashboard() {
                   disabled={sending || !newMessage.trim()}
                   className="send-btn"
                 >
-                  {sending ? 'Sending...' : '📤 Send Message'}
+                  {sending ? 'Sending...' : 'Send Message'}
                 </button>
               </form>
             </div>

@@ -113,9 +113,9 @@ export default function WhitelistManager() {
   return (
     <div className="whitelist-container">
       <header className="whitelist-header">
-        <h2>👨‍💼 Internal Team Whitelist Management</h2>
+        <h2>Internal Team Whitelist Management</h2>
         <button onClick={fetchWhitelist} className="refresh-btn-small">
-          🔄 Refresh
+          Refresh
         </button>
       </header>
 
@@ -136,7 +136,7 @@ export default function WhitelistManager() {
       <div className="whitelist-sections-single">
         {/* INTERNAL TEAM WHITELIST SECTION */}
         <div className="whitelist-section">
-          <h3>👨‍💼 Internal Team Whitelist ({internalWhitelist.length})</h3>
+          <h3>Internal Team Whitelist ({internalWhitelist.length})</h3>
 
           <form onSubmit={handleAddInternal} className="add-form">
             <div className="form-group">
@@ -157,7 +157,7 @@ export default function WhitelistManager() {
                 className="name-input"
               />
               <button type="submit" disabled={adding} className="add-btn">
-                {adding ? 'Menambah...' : '➕ Tambah Tim Internal'}
+                {adding ? 'Menambah...' : 'Tambah Tim Internal'}
               </button>
             </div>
           </form>
@@ -189,7 +189,7 @@ export default function WhitelistManager() {
                           className="delete-btn"
                           title="Hapus dari whitelist"
                         >
-                          🗑️ Delete
+                          Delete
                         </button>
                       </td>
                     </tr>

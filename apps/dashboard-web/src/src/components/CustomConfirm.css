@@ -1,3 +1,5 @@
+/* Filament-Inspired Clean Professional Confirm Styling */
+
 /* Custom Confirm Overlay */
 .custom-confirm-overlay {
   position: fixed;
@@ -5,129 +7,154 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 9999;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  pointer-events: none;
+  z-index: 1000;
+  animation: fadeIn 0.15s ease-out;
 }
 
-.custom-confirm-overlay.visible {
-  opacity: 1;
-  pointer-events: all;
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* Custom Confirm Box */
 .custom-confirm {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  max-width: 450px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-xl);
   width: 90%;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  max-width: 400px;
+  box-shadow: var(--shadow-lg);
   position: relative;
-  transform: scale(0.7);
-  opacity: 0;
-  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  animation: slideUp 0.2s ease-out;
 }
 
-.custom-confirm.visible {
-  transform: scale(1);
-  opacity: 1;
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 /* Confirm Icon */
 .custom-confirm-icon {
-  font-size: 48px;
   text-align: center;
-  margin-bottom: 16px;
+  margin-bottom: var(--spacing-5);
+  display: flex;
+  justify-content: center;
+}
+
+.custom-confirm-icon svg {
+  width: 48px;
+  height: 48px;
+  color: var(--info-600);
 }
 
 /* Confirm Content */
 .custom-confirm-content {
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: var(--spacing-8);
 }
 
 .custom-confirm-title {
-  margin: 0 0 12px 0;
-  color: #1f2937;
-  font-size: 20px;
+  margin: 0 0 var(--spacing-4) 0;
+  color: var(--gray-900);
+  font-size: 1.25rem;
   font-weight: 600;
+  line-height: 1.25;
 }
 
 .custom-confirm-message {
   margin: 0;
-  color: #6b7280;
-  font-size: 15px;
-  line-height: 1.6;
+  color: var(--gray-600);
+  font-size: 0.875rem;
+  line-height: 1.5;
   white-space: pre-line;
 }
 
 /* Confirm Actions */
 .custom-confirm-actions {
   display: flex;
-  gap: 12px;
+  gap: var(--spacing-3);
   justify-content: center;
 }
 
 .custom-confirm-btn {
   flex: 1;
-  padding: 12px 24px;
-  border: none;
-  border-radius: 8px;
-  font-size: 15px;
+  padding: var(--spacing-3) var(--spacing-6);
+  border: 1px solid;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease-in-out;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .custom-confirm-btn-cancel {
-  background-color: #f3f4f6;
-  color: #4b5563;
+  background: var(--white);
+  color: var(--gray-700);
+  border-color: var(--gray-300);
 }
 
 .custom-confirm-btn-cancel:hover {
-  background-color: #e5e7eb;
+  background: var(--gray-50);
+  color: var(--gray-900);
+  border-color: var(--gray-400);
 }
 
 .custom-confirm-btn-confirm {
-  background-color: #3b82f6;
-  color: white;
+  background: var(--primary);
+  color: var(--white);
+  border-color: var(--primary);
 }
 
 .custom-confirm-btn-confirm:hover {
-  background-color: #2563eb;
+  background: var(--primary-700);
+  border-color: var(--primary-700);
 }
 
 .custom-confirm-btn:active {
-  transform: scale(0.98);
+  transform: translateY(1px);
 }
 
-/* Responsive */
+/* Responsive Design */
 @media (max-width: 640px) {
   .custom-confirm {
-    max-width: 90%;
-    padding: 20px;
+    width: 95%;
+    padding: var(--spacing-5);
   }
 
-  .custom-confirm-icon {
-    font-size: 40px;
+  .custom-confirm-icon svg {
+    width: 40px;
+    height: 40px;
   }
 
   .custom-confirm-title {
-    font-size: 18px;
+    font-size: 1.125rem;
   }
 
   .custom-confirm-message {
-    font-size: 14px;
+    font-size: 0.8125rem;
+  }
+
+  .custom-confirm-actions {
+    flex-direction: column;
+    gap: var(--spacing-2);
   }
 
   .custom-confirm-btn {
-    padding: 10px 20px;
-    font-size: 14px;
+    padding: var(--spacing-3) var(--spacing-4);
+    font-size: 0.8125rem;
   }
 }
