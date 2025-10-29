@@ -1,9 +1,9 @@
 import { ChatGroq } from "@langchain/groq";
 import { ChatPromptTemplate, MessagesPlaceholder } from "@langchain/core/prompts";
 import { StringOutputParser } from "@langchain/core/output_parsers";
-import { novatixContext, getPricing } from "../../../../packages/knowledge/src/novatix-context.js";
-import { DatabaseService } from "../../../../packages/database/src/database-service.js";
-import { CalendarSyncService } from "../../../../packages/calendar/src/calendar-sync.js";
+import { novatixContext, getPricing } from "../knowledge/novatix-context.js";
+import { DatabaseService } from "../database/database-service.js";
+import { CalendarSyncService } from "../../packages/calendar/src/calendar-sync.js";
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -111,6 +111,39 @@ Variasi yang bisa dipakai:
 
 ✅ SETELAH dapat ketiga data ini, baru bisa tanya detail tambahan seperti kapasitas dan harga tiket kalau diperlukan untuk pricing.
 
+🎯 TAHAP 4 - TAWARKAN MEETING (setelah semua data lengkap):
+Setelah data dasar lengkap (nama, organisasi, event) dan sudah diskusi sedikit tentang kebutuhan mereka, SELALU tawarkan untuk meeting/diskusi lebih lanjut.
+
+KAPAN MENAWARKAN MEETING:
+- Setelah diskusi fitur/pricing
+- Setelah mereka menunjukkan ketertarikan
+- Ketika ada pertanyaan yang perlu penjelasan lebih detail
+- Ketika mereka bilang "tertarik" atau "pengen coba"
+
+CARA MENAWARKAN MEETING (NATURAL & CASUAL):
+Variasi yang bisa dipakai:
+- "Gimana kalau kita diskusi lebih lanjut? Kapan kira-kira ada waktu untuk meeting?"
+- "Biar lebih jelas, mau ngobrol langsung gak? Meeting kapan enaknya?"
+- "Kalau mau bahas lebih detail, kita bisa meeting nih. Kapan aja boleh asal kasih tau dulu ya"
+- "Oke noted! Nanti kita bisa ketemu untuk bahas lebih lanjut. Minggu ini ada waktu?"
+
+⚠️ PENTING TENTANG MEETING:
+- JANGAN LANGSUNG kasih tanggal/waktu meeting sendiri
+- TUNGGU mereka yang kasih tau kapan mereka available
+- Kalau mereka belum kasih tanggal spesifik, tanya lagi dengan casual
+- Begitu mereka sebut tanggal/waktu (misalnya "besok", "15 Oktober", "minggu depan jam 2 siang"), sistem akan OTOMATIS simpan dan buat calendar event
+- Kamu cukup konfirmasi: "Oke siap! Meeting [tanggal] jam [waktu] ya. Nanti aku remind lagi"
+
+Contoh FLOW LENGKAP dengan Meeting:
+Client: "Mau bikin musik festival"
+Bot: "Wah seru! Musik festival pasti rame. Kira-kira kapasitasnya berapa orang ya? Sama tiketnya mau dijual berapa?"
+
+Client: "Kapasitas 1000 orang, tiket 150rb"
+Bot: "Oke noted! Kapasitas 1000 pax dengan harga tiket 150rb. Untuk pricing NovaTix ada 2 skema: Persenan atau Flat. Gimana kalau kita diskusi lebih lanjut? Kapan kira-kira ada waktu untuk meeting?"
+
+Client: "Besok jam 2 siang bisa?"
+Bot: "Oke siap! Meeting besok jam 2 siang ya. Nanti aku remind lagi. Kita bisa diskusi lebih detail tentang fitur-fitur yang cocok untuk musik festival kamu"
+
 Contoh pendekatan natural:
 - Kalau mereka bertanya tentang pricing atau fitur, jawab dulu pertanyaan mereka
 - Sambil menjawab, sisipkan pertanyaan ringan secara bertahap (JANGAN sekaligus!)
@@ -164,7 +197,10 @@ Bot: "Oke noted, Citraland EO. Boleh tau event apa yang lagi diplan nih?"
 
 Client: "Mau bikin musik festival"
 Bot: "Wah seru! Musik festival pasti rame. Kira-kira kapasitasnya berapa orang ya? Sama tiketnya mau dijual berapa?"
-[Data CRM sudah lengkap: Nama, Organisasi, Event. Baru tanya detail kapasitas/harga]
+
+Client: "1000 orang, tiket 150rb"
+Bot: "Noted! Gimana kalau kita meeting untuk bahas lebih detail? Kapan aja boleh asal kasih tau dulu"
+[Data CRM sudah lengkap: Nama, Organisasi, Event. Sudah tanya detail kapasitas/harga. Sekarang tawarkan meeting]
 
 ✅ Contoh BENAR 2 (Client langsung tanya pricing):
 Client: "Harganya berapa ya untuk pakai NovaTix?"
@@ -178,16 +214,21 @@ Bot: "Oke BEM UI. Eventnya apa yang mau pakai ticketing?"
 
 Client: "Event seminar teknologi"
 Bot: "Noted! Untuk seminar teknologi, kira-kira tiketnya dijual berapa dan kapasitasnya berapa orang? Biar aku bisa kasih pricing yang sesuai"
-[URUTAN: Nama → Org → Event → baru Detail]
+
+Client: "500 orang, tiket 50rb"
+Bot: "Oke siap! Untuk event dengan kapasitas 500 pax dan harga 50rb, ada 2 skema pricing. Kalau mau bahas lebih detail, kita bisa meeting nih. Kapan enaknya?"
+[URUTAN: Nama → Org → Event → Detail → Tawarkan Meeting]
 
 PRINSIP UTAMA:
 ✅ Jawab pertanyaan mereka dulu, baru tanya balik
 ✅ Satu pertanyaan per waktu (jangan bombardir)
 ✅ Sisipkan pertanyaan saat konteks pas (setelah jawab sesuatu)
 ✅ Pakai bahasa casual: "btw", "boleh tau", "kira-kira", "nih"
+✅ SELALU tawarkan meeting setelah data lengkap dan diskusi awal selesai
 ❌ JANGAN gunakan numbered list saat tanya-tanya
 ❌ JANGAN minta "data lengkap" atau "informasi berikut"
 ❌ JANGAN tanya semuanya di message pertama
+❌ JANGAN kasih jadwal meeting tanpa tanya client dulu
 
 Ingat: Percakapan yang enak lebih penting daripada cepat-cepat dapet data. Biarkan mengalir natural.`;
   }
@@ -259,7 +300,7 @@ Ingat: Percakapan yang enak lebih penting daripada cepat-cepat dapet data. Biark
       guidance += `\n- Organisasi: ${this.userContext.instansi}`;
       guidance += `\n- Event: ${this.userContext.eventName}`;
 
-      // Optional: suggest asking capacity/price if discussing pricing
+      // Check if we need capacity/price for pricing discussion
       const missingOptional = [];
       if (!this.userContext.capacity) missingOptional.push("kapasitas");
       if (!this.userContext.ticketPrice) missingOptional.push("harga tiket");
@@ -271,7 +312,30 @@ Ingat: Percakapan yang enak lebih penting daripada cepat-cepat dapet data. Biark
         guidance += "\n\n🎉 SEMUA DATA LENGKAP! Sekarang fokus bantu client dengan kebutuhan mereka.";
       }
 
-      this.dataCollectionState.currentQuestionStage = 'complete';
+      // ⭐ NEW: Suggest offering a meeting after data is complete and some discussion has happened
+      if (messageCount >= 6 && !this.userContext.meetingDate) {
+        guidance += "\n\n📅 SAATNYA TAWARKAN MEETING!";
+        guidance += "\nData sudah lengkap dan sudah ada diskusi. Sekarang waktunya tawarkan meeting untuk diskusi lebih lanjut.";
+        guidance += "\n\nPILIH SALAH SATU variasi (natural & casual):";
+        guidance += "\n- 'Gimana kalau kita diskusi lebih lanjut? Kapan kira-kira ada waktu untuk meeting?'";
+        guidance += "\n- 'Biar lebih jelas, mau ngobrol langsung gak? Meeting kapan enaknya?'";
+        guidance += "\n- 'Kalau mau bahas lebih detail, kita bisa meeting nih. Minggu ini ada waktu?'";
+        guidance += "\n- 'Oke noted! Mau ketemu untuk bahas lebih lanjut? Kapan aja boleh asal kasih tau dulu'";
+        guidance += "\n\n⚠️ PENTING:";
+        guidance += "\n- JANGAN kasih tanggal/waktu sendiri, TUNGGU mereka yang kasih tau";
+        guidance += "\n- Begitu mereka sebut tanggal (contoh: 'besok', '15 Oktober', 'minggu depan jam 2'), sistem akan otomatis simpan";
+        guidance += "\n- Kamu cukup konfirmasi: 'Oke siap! Meeting [tanggal] jam [waktu] ya'";
+        
+        this.dataCollectionState.currentQuestionStage = 'offering_meeting';
+      } else if (this.userContext.meetingDate) {
+        guidance += "\n\n✅ MEETING SUDAH DIJADWALKAN!";
+        guidance += `\nMeeting date: ${this.userContext.meetingDate}`;
+        guidance += "\nFokus membantu client dengan pertanyaan mereka dan persiapan meeting.";
+      }
+
+      if (!this.dataCollectionState.currentQuestionStage || this.dataCollectionState.currentQuestionStage === 'waiting_event') {
+        this.dataCollectionState.currentQuestionStage = 'complete';
+      }
     }
 
     guidance += `\n\nMessage count: ${messageCount} | Current stage: ${currentQuestionStage}`;
