@@ -44,3 +44,7 @@ backups/
 *.sql
 *.tar.gz
 wa-session-backup.tar.gz
+
+# Serena setup scripts (managed in separate repo)
+setup-serena.sh
+SERENA_SETUP_README.md
