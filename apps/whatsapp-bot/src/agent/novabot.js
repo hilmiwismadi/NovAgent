@@ -111,21 +111,37 @@ Variasi yang bisa dipakai:
 
 ✅ SETELAH dapat ketiga data ini, baru bisa tanya detail tambahan seperti kapasitas dan harga tiket kalau diperlukan untuk pricing.
 
-🎯 TAHAP 4 - TAWARKAN MEETING (setelah semua data lengkap):
-Setelah data dasar lengkap (nama, organisasi, event) dan sudah diskusi sedikit tentang kebutuhan mereka, SELALU tawarkan untuk meeting/diskusi lebih lanjut.
+🎯 TAHAP 4 - TAWARKAN MEETING (CRITICAL - WAJIB DILAKUKAN!):
+Setelah data dasar lengkap (nama, organisasi, event) dan sudah diskusi sedikit tentang kebutuhan mereka, kamu WAJIB tawarkan untuk meeting/diskusi lebih lanjut.
 
-KAPAN MENAWARKAN MEETING:
-- Setelah diskusi fitur/pricing
-- Setelah mereka menunjukkan ketertarikan
-- Ketika ada pertanyaan yang perlu penjelasan lebih detail
-- Ketika mereka bilang "tertarik" atau "pengen coba"
+⚠️ CRITICAL MEETING TRIGGERS (LANGSUNG TAWARKAN MEETING!):
+1. Mereka bilang "tertarik", "menarik", "boleh", "oke", "siap"
+2. Mereka bilang "pusing", "bingung", "ribet" dengan chat → LANGSUNG offer meeting
+3. Mereka tanya "lalu?", "terus?", "next step?" → Mereka MENUNGGU offering meeting!
+4. Setelah diskusi fitur/pricing selama 3-4 chat bubble
+5. Mereka tanya detail yang butuh penjelasan panjang
+6. Setelah dapat data lengkap (nama, org, event, kapasitas, harga)
+
+KAPAN MENAWARKAN MEETING - GUNAKAN SEGERA:
+- ✅ Setelah diskusi fitur/pricing (WAJIB!)
+- ✅ Begitu mereka menunjukkan ketertarikan (WAJIB!)
+- ✅ Mereka bilang chat pusing/ribet (WAJIB!)
+- ✅ Mereka tanya "lalu?", "terus gimana?" (WAJIB!)
+- ✅ Mereka bilang "tertarik" atau "pengen coba" (WAJIB!)
+
+🚨 KESALAHAN UMUM YANG HARUS DIHINDARI:
+❌ JANGAN bilang "bicara langsung" tanpa ASK waktu meeting!
+❌ JANGAN cuma jelasin lebih detail terus - client sudah bosan!
+❌ JANGAN abaikan signal "tertarik" atau "lalu apa" - ITU CUES UNTUK MEETING!
+❌ JANGAN ngasih info bertele-tele kalau client sudah tertarik - OFFER MEETING!
 
 CARA MENAWARKAN MEETING (NATURAL & CASUAL):
-Variasi yang bisa dipakai:
+Variasi yang WAJIB dipakai:
 - "Gimana kalau kita diskusi lebih lanjut? Kapan kira-kira ada waktu untuk meeting?"
 - "Biar lebih jelas, mau ngobrol langsung gak? Meeting kapan enaknya?"
 - "Kalau mau bahas lebih detail, kita bisa meeting nih. Kapan aja boleh asal kasih tau dulu ya"
 - "Oke noted! Nanti kita bisa ketemu untuk bahas lebih lanjut. Minggu ini ada waktu?"
+- "Yuk kita meeting aja biar lebih gampang! Kapan bisa ketemu?"
 
 ⚠️ PENTING TENTANG MEETING:
 - JANGAN LANGSUNG kasih tanggal/waktu meeting sendiri
@@ -133,6 +149,25 @@ Variasi yang bisa dipakai:
 - Kalau mereka belum kasih tanggal spesifik, tanya lagi dengan casual
 - Begitu mereka sebut tanggal/waktu (misalnya "besok", "15 Oktober", "minggu depan jam 2 siang"), sistem akan OTOMATIS simpan dan buat calendar event
 - Kamu cukup konfirmasi: "Oke siap! Meeting [tanggal] jam [waktu] ya. Nanti aku remind lagi"
+
+🚨 CONTOH KASUS NYATA YANG SALAH (JANGAN DIULANG!):
+❌ WRONG:
+Client: "Oke baik tapi tampaknya lewat chat bikin saya pusing"
+Bot: "Maaf! Saya paham. Mungkin lebih baik kita bicara langsung saja..."
+→ SALAH! Bot bilang "bicara langsung" tapi TIDAK ASK waktu meeting!
+
+✅ CORRECT:
+Client: "Oke baik tapi tampaknya lewat chat bikin saya pusing"
+Bot: "Betul banget! Gimana kalau kita meeting aja biar lebih jelas? Kapan kira-kira ada waktu?"
+
+❌ WRONG:
+Client: "Iya oke sy tertarik lalu apa"
+Bot: "Baiklah! Jadi, jika kamu tertarik dengan NovaTix, kita bisa lanjutkan dengan membahas..."
+→ SALAH! Client sudah tertarik dan tanya "lalu apa" = mereka WAITING for meeting offer!
+
+✅ CORRECT:
+Client: "Iya oke sy tertarik lalu apa"
+Bot: "Oke siap! Biar lebih detail, yuk kita meeting. Kapan enaknya? Minggu ini available?"
 
 Contoh FLOW LENGKAP dengan Meeting:
 Client: "Mau bikin musik festival"
@@ -418,6 +453,99 @@ Ingat: Percakapan yang enak lebih penting daripada cepat-cepat dapet data. Biark
     return guidance;
   }
 
+  /**
+   * Detect interest signals that should trigger meeting offers
+   * Returns urgency level: 'critical', 'high', 'normal', or null
+   */
+  detectInterestSignals(userMessage) {
+    const lowerMessage = userMessage.toLowerCase();
+
+    // CRITICAL signals - user is frustrated or explicitly interested
+    const criticalSignals = [
+      'pusing', 'bingung', 'ribet', 'susah', 'rumit',
+      'tertarik', 'interest', 'menarik',
+      'lalu apa', 'lalu?', 'terus?', 'terus gimana', 'next step',
+      'oke lalu', 'ya lalu', 'iya terus'
+    ];
+
+    // HIGH priority signals - user is engaging positively
+    const highSignals = [
+      'boleh', 'oke', 'ok', 'siap', 'setuju', 'deal',
+      'sip', 'mantap', 'bagus', 'cocok'
+    ];
+
+    // Check for critical signals
+    for (const signal of criticalSignals) {
+      if (lowerMessage.includes(signal)) {
+        console.log(`[INTEREST DETECTION] CRITICAL signal detected: "${signal}"`);
+        return 'critical';
+      }
+    }
+
+    // Check for high signals (only if basic data is collected)
+    if (this.userContext.nama && this.userContext.instansi && this.userContext.eventName) {
+      for (const signal of highSignals) {
+        if (lowerMessage.includes(signal)) {
+          console.log(`[INTEREST DETECTION] HIGH signal detected: "${signal}"`);
+          return 'high';
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Build meeting offer guidance based on interest signals
+   */
+  buildMeetingOfferGuidance(urgencyLevel, userMessage) {
+    if (!urgencyLevel) return '';
+
+    let guidance = '\n\n🚨🚨🚨 CRITICAL MEETING TRIGGER DETECTED! 🚨🚨🚨\n';
+
+    if (urgencyLevel === 'critical') {
+      guidance += '\n⚠️ USER MENUNJUKKAN INTEREST KUAT ATAU FRUSTASI!';
+      guidance += `\nUser message: "${userMessage}"`;
+      guidance += '\n\n🎯 ACTION REQUIRED (WAJIB!):';
+      guidance += '\nKamu HARUS tawarkan meeting SEKARANG dalam response kamu!';
+      guidance += '\n\nGunakan salah satu variasi ini (PILIH 1):';
+      
+      if (userMessage.toLowerCase().includes('pusing') || 
+          userMessage.toLowerCase().includes('bingung') ||
+          userMessage.toLowerCase().includes('ribet')) {
+        guidance += '\n- "Betul banget! Gimana kalau kita meeting aja biar lebih jelas? Kapan kira-kira ada waktu?"';
+        guidance += '\n- "Yuk kita meeting aja biar lebih gampang! Kapan bisa ketemu?"';
+      } else if (userMessage.toLowerCase().includes('tertarik')) {
+        guidance += '\n- "Oke siap! Biar lebih detail, yuk kita meeting. Kapan enaknya?"';
+        guidance += '\n- "Wah senang denger itu! Gimana kalau kita meeting untuk bahas lebih lanjut? Minggu ini kapan bisa?"';
+      } else if (userMessage.toLowerCase().includes('lalu') || 
+                 userMessage.toLowerCase().includes('terus')) {
+        guidance += '\n- "Oke siap! Biar lebih detail, yuk kita meeting. Kapan enaknya? Minggu ini available?"';
+        guidance += '\n- "Next step-nya kita meeting ya! Kapan kira-kira ada waktu?"';
+      }
+
+      guidance += '\n\n❌ JANGAN:';
+      guidance += '\n- Jelasin panjang lebar lagi - user sudah bosan!';
+      guidance += '\n- Bilang "bicara langsung" tanpa ASK waktu meeting';
+      guidance += '\n- Abaikan signal ini!';
+
+    } else if (urgencyLevel === 'high') {
+      guidance += '\n⚠️ USER MENUNJUKKAN INTEREST POSITIF!';
+      guidance += '\n\n🎯 STRONG RECOMMENDATION:';
+      guidance += '\nSangat disarankan untuk tawarkan meeting dalam response kamu.';
+      guidance += '\n\nContoh:';
+      guidance += '\n- "Gimana kalau kita diskusi lebih lanjut? Kapan kira-kira ada waktu untuk meeting?"';
+      guidance += '\n- "Biar lebih jelas, mau ngobrol langsung gak? Meeting kapan enaknya?"';
+    }
+
+    guidance += '\n\n⚠️ REMINDER:';
+    guidance += '\n- JANGAN kasih tanggal sendiri, TANYA mereka kapan available';
+    guidance += '\n- Begitu mereka sebut tanggal, sistem akan otomatis simpan';
+    guidance += '\n🚨🚨🚨 END OF CRITICAL TRIGGER 🚨🚨🚨\n';
+
+    return guidance;
+  }
+
   async chat(userMessage) {
     // Increment message count
     this.dataCollectionState.messageCount++;
@@ -430,6 +558,10 @@ Ingat: Percakapan yang enak lebih penting daripada cepat-cepat dapet data. Biark
 
     // Sync calendar events if dates were extracted
     await this.syncCalendarEvents();
+
+    // Detect interest signals for meeting offer (CRITICAL for conversion!)
+    const interestLevel = this.detectInterestSignals(userMessage);
+    const meetingOfferGuidance = this.buildMeetingOfferGuidance(interestLevel, userMessage);
 
     // Build data collection guidance for the bot
     const dataCollectionGuidance = this.buildDataCollectionGuidance();
@@ -445,7 +577,7 @@ Ingat: Percakapan yang enak lebih penting daripada cepat-cepat dapet data. Biark
     const toolsUsed = [];
 
     // Check if we have pricing info to provide
-    let additionalContext = dataCollectionGuidance;
+    let additionalContext = dataCollectionGuidance + meetingOfferGuidance;
     if (this.userContext.ticketPrice && this.userContext.capacity) {
       const pricing = getPricing(this.userContext.ticketPrice, this.userContext.capacity);
       toolsUsed.push('getPricing');
