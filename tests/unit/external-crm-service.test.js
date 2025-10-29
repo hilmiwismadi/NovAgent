@@ -144,16 +144,39 @@ describe('External CRM Service', () => {
 
   describe('Polling', () => {
     test('should start polling when enabled', () => {
+      service.isEnabled = true;
       service.syncMode = 'polling';
 
       service.startPolling();
 
-      expect(service.cronJob).toBeDefined();
+      // cronJob is set by cron.schedule mock
+      expect(service.cronJob).toBeTruthy();
     });
 
-    test('should stop polling', () => {
+    test('should start polling with custom interval', () => {
+      process.env.EXTERNAL_CRM_SYNC_INTERVAL = '15';
+      service.isEnabled = true;
       service.syncMode = 'polling';
+
       service.startPolling();
+
+      expect(service.cronJob).toBeTruthy();
+      delete process.env.EXTERNAL_CRM_SYNC_INTERVAL;
+    });
+
+    test('should stop polling when cronJob exists', () => {
+      service.isEnabled = true;
+      service.syncMode = 'polling';
+      service.cronJob = { stop: jest.fn() };
+
+      service.stopPolling();
+
+      // After stopPolling, cronJob should be reset
+      expect(service.cronJob).toBeFalsy();
+    });
+
+    test('should handle stopPolling when cronJob is null', () => {
+      service.cronJob = null;
 
       service.stopPolling();
 
@@ -165,7 +188,16 @@ describe('External CRM Service', () => {
 
       service.startPolling();
 
-      expect(service.cronJob).toBeNull();
+      expect(service.cronJob).toBeUndefined();
+    });
+
+    test('should not start polling when disabled', () => {
+      service.isEnabled = false;
+      service.syncMode = 'polling';
+
+      service.startPolling();
+
+      expect(service.cronJob).toBeUndefined();
     });
   });
 
@@ -192,6 +224,40 @@ describe('External CRM Service', () => {
       expect(pollingService.syncMode).toBe('polling');
 
       delete process.env.EXTERNAL_CRM_SYNC_MODE;
+    });
+  });
+
+  describe('Status', () => {
+    test('should get status when not configured', () => {
+      const status = service.getStatus();
+
+      expect(status).toBeDefined();
+      expect(status.enabled).toBeDefined();
+      expect(status.mode).toBeDefined();
+      expect(status.polling).toBe('inactive');
+      expect(status.configured).toBe(false);
+    });
+
+    test('should get status when configured', () => {
+      process.env.EXTERNAL_CRM_API_URL = 'https://api.example.com';
+      process.env.EXTERNAL_CRM_API_KEY = 'test-key';
+
+      const status = service.getStatus();
+
+      expect(status.configured).toBe(true);
+
+      delete process.env.EXTERNAL_CRM_API_URL;
+      delete process.env.EXTERNAL_CRM_API_KEY;
+    });
+
+    test('should show polling as active when running', () => {
+      service.isEnabled = true;
+      service.syncMode = 'polling';
+      service.cronJob = { stop: jest.fn() }; // Set cronJob to simulate active polling
+
+      const status = service.getStatus();
+
+      expect(status.polling).toBe('active');
     });
   });
 
