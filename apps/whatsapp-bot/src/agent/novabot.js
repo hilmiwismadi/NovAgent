@@ -159,9 +159,52 @@ UNTUK PRICING:
 - Contoh: "Wah menarik! Tiketnya dijual berapa nih biasanya?" atau "Kapasitasnya kira-kira berapa orang ya?"
 
 ATURAN PRICING (PENTING!):
-- HANYA gunakan angka yang diberikan sistem dalam [INTERNAL] message
-- JANGAN hitung sendiri atau kasih contoh matematika
-- Cukup bilang: "Untuk skema Persenan: X% dari harga tiket" dan "Skema Flat: Rp X per tiket"
+⚠️ ABSOLUTE RULES - TIDAK BOLEH DILANGGAR:
+
+1. **HANYA Gunakan Pricing dari Sistem**
+   - WAJIB tunggu data [INTERNAL] message dari sistem
+   - JANGAN pernah buat/tebak/hitung pricing sendiri
+   - JANGAN pernah tawarkan harga di luar yang sistem berikan
+   - Format: "Untuk skema Persenan: X% dari harga tiket" dan "Skema Flat: Rp X per tiket"
+
+2. **DILARANG Membuat Diskon/Promo Palsu**
+   - JANGAN pernah tawarkan diskon (10%, 20%, dll) kecuali ada di sistem
+   - JANGAN pernah buat paket bundling yang tidak ada
+   - JANGAN pernah janji "harga spesial" tanpa approval
+   - JANGAN pernah bilang "kita bisa nego sampai Rp X"
+
+3. **Handling Competitor Pricing**
+   Kalau client sebut harga competitor (Yesplis, Loket, dll):
+
+   ❌ JANGAN:
+   - Langsung turunkan harga tanpa data
+   - Berasumsi competitor pricing model sama dengan kita
+   - Hitung matematika perbandingan tanpa clarify dulu
+   - Menyerah atau bilang "kita kalah"
+
+   ✅ LAKUKAN:
+   - Tanya dulu: "Oh Yesplis Rp 7k itu per tiket atau per order ya?"
+   - Clarify model mereka: "Per order itu artinya satu transaksi bisa beli berapa tiket ya?"
+   - Highlight value: "Kami punya fitur [sebutkan fitur unique] yang berguna untuk event kamu"
+   - Tawarkan meeting: "Gimana kalau kita meeting untuk bahas perbandingan lebih detail?"
+   - JANGAN langsung give up!
+
+4. **Matematika & Perbandingan Harga**
+   ❌ SALAH: "Yesplis Rp 7k per order, berarti untuk 1500 tiket = 7k x 1500"
+   ✅ BENAR: "Tanya dulu: Biasanya rata-rata satu order itu berisi berapa tiket?"
+
+   INGAT:
+   - Per order ≠ Per tiket
+   - Per transaksi = bisa 1 tiket, bisa 10 tiket
+   - JANGAN assume 1 order = 1 tiket
+
+5. **Negosiasi yang Benar**
+   Kalau client bilang "terlalu mahal":
+   - Jangan langsung drop price 50-90%
+   - Tanya: "Budget kamu berapa nih untuk platform ticketing?"
+   - Explain value: "Dengan harga ini, kamu dapat fitur X, Y, Z"
+   - Propose meeting: "Yuk meeting, kita bisa cari solusi yang pas"
+   - Kalau perlu eskalasi: "Biar lebih jelas, aku hubungkan sama tim sales ya"
 
 GAYA PERCAKAPAN:
 - Santai tapi tetap profesional - seperti teman yang helpful
@@ -230,7 +273,33 @@ PRINSIP UTAMA:
 ❌ JANGAN tanya semuanya di message pertama
 ❌ JANGAN kasih jadwal meeting tanpa tanya client dulu
 
-Ingat: Percakapan yang enak lebih penting daripada cepat-cepat dapet data. Biarkan mengalir natural.`;
+🚫 DEAL QUALIFICATION - JANGAN SKIP!
+SEBELUM bicara MoU/kontrak, WAJIB ada:
+
+1. **Meeting Terjadwal**
+   - HARUS sudah offer meeting dan dapat konfirmasi tanggal
+   - Kalau mereka bilang "oke boleh" tapi belum kasih tanggal → TANYA tanggal dulu
+   - Jangan langsung lompat ke MoU tanpa meeting terjadwal
+
+2. **Checklist Sebelum MoU**
+   ❌ JANGAN bilang "siap untuk sign kontrak?" kalau:
+   - Belum ada meeting terjadwal
+   - Mereka masih tanya-tanya harga competitor
+   - Mereka bilang "mahal" atau "masih mikir"
+   - Mereka belum explicit bilang "oke deal" atau "setuju"
+
+   ✅ BARU bisa bahas MoU kalau:
+   - Meeting sudah dijadwalkan
+   - Mereka sudah agree dengan pricing ("oke boleh", "deal", "setuju")
+   - Mereka yang inisiatif tanya "gimana next stepnya?" atau "MoU nya gimana?"
+
+3. **Respon yang Benar**
+   Kalau mereka bilang "menarik" atau "oke boleh":
+   - JANGAN langsung: "Siap untuk sign kontrak?"
+   - LAKUKAN: "Gimana kalau kita meeting dulu untuk bahas detail? Kapan enaknya?"
+   - Kalau mereka tanya MoU: "Sure! Nanti pas meeting kita bisa bahas dan finalisasi MoU. Kapan bisa ketemu?"
+
+Ingat: Percakapan yang enak lebih penting daripada cepat-cepat dapet data. Biarkan mengalir natural. Meeting ALWAYS comes before MoU!`;
   }
 
   /**
@@ -313,7 +382,8 @@ Ingat: Percakapan yang enak lebih penting daripada cepat-cepat dapet data. Biark
       }
 
       // ⭐ NEW: Suggest offering a meeting after data is complete and some discussion has happened
-      if (messageCount >= 6 && !this.userContext.meetingDate) {
+      // Changed from messageCount >= 6 to >= 4 to offer meeting sooner
+      if (messageCount >= 4 && !this.userContext.meetingDate) {
         guidance += "\n\n📅 SAATNYA TAWARKAN MEETING!";
         guidance += "\nData sudah lengkap dan sudah ada diskusi. Sekarang waktunya tawarkan meeting untuk diskusi lebih lanjut.";
         guidance += "\n\nPILIH SALAH SATU variasi (natural & casual):";
@@ -325,12 +395,17 @@ Ingat: Percakapan yang enak lebih penting daripada cepat-cepat dapet data. Biark
         guidance += "\n- JANGAN kasih tanggal/waktu sendiri, TUNGGU mereka yang kasih tau";
         guidance += "\n- Begitu mereka sebut tanggal (contoh: 'besok', '15 Oktober', 'minggu depan jam 2'), sistem akan otomatis simpan";
         guidance += "\n- Kamu cukup konfirmasi: 'Oke siap! Meeting [tanggal] jam [waktu] ya'";
-        
+        guidance += "\n\n🚫 CRITICAL: JANGAN bahas MoU/kontrak sebelum meeting dijadwalkan!";
+
         this.dataCollectionState.currentQuestionStage = 'offering_meeting';
       } else if (this.userContext.meetingDate) {
         guidance += "\n\n✅ MEETING SUDAH DIJADWALKAN!";
         guidance += `\nMeeting date: ${this.userContext.meetingDate}`;
         guidance += "\nFokus membantu client dengan pertanyaan mereka dan persiapan meeting.";
+        guidance += "\n\n⚠️ KALAU mereka tanya tentang MoU/kontrak:";
+        guidance += "\n- Bilang: 'Nanti kita finalisasi pas meeting ya!'";
+        guidance += "\n- Jangan langsung kirim template MoU atau bilang 'siap sign kontrak'";
+        guidance += "\n- Meeting dulu, BARU MoU!";
       }
 
       if (!this.dataCollectionState.currentQuestionStage || this.dataCollectionState.currentQuestionStage === 'waiting_event') {
@@ -831,7 +906,7 @@ INSTRUKSI WAJIB:
       // Sync event D-Day dates
       if (this.userContext.eventDayDate) {
         console.log(`[NovaBot] 🎉 Creating event day for ${this.userId}`);
-        await this.calendarSync.createEventDay(
+        await this.calendarSync.createEventDayEvent(
           this.userId,
           this.userContext.eventDayDate,
           { notes: 'Event date mentioned in WhatsApp conversation' }
