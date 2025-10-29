@@ -156,6 +156,7 @@
 /* Whitelist Toggle Button */
 .whitelist-cell {
   text-align: center;
+  vertical-align: middle;
 }
 
 .whitelist-toggle-btn {
