@@ -6,9 +6,9 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { NovaBot } from '../agent/novabot.js';
-import { DatabaseService } from '../../../../packages/database/src/database-service.js';
-import { IntentDetector } from '../../../../packages/database/utils/intent-detector.js';
-import whitelistService from '../../../dashboard-api/src/backend/services/whitelistService.js';
+import { DatabaseService } from '../database/database-service.js';
+import { IntentDetector } from '../utils/intent-detector.js';
+import whitelistService from '../services/whitelistService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -61,8 +61,15 @@ export class WhatsAppClient {
     // Intent detector for natural language commands
     this.intentDetector = new IntentDetector();
 
-    // Queue processor - path from apps/whatsapp-bot/src/integrations to project root
-    this.queueDir = path.join(__dirname, '../../../../.message-queue');
+    // Queue processor - detect environment and set appropriate directory
+    const isWindows = process.platform === 'win32';
+    if (isWindows || !fs.existsSync('/app')) {
+      // Local development - use relative path
+      this.queueDir = path.join(__dirname, '../../../../.message-queue');
+    } else {
+      // Docker environment - use absolute path
+      this.queueDir = '/app/.message-queue';
+    }
     this.queueProcessorInterval = null;
     console.log('[WhatsApp Client] Queue directory:', this.queueDir);
     this.ensureQueueDir();
@@ -153,6 +160,57 @@ export class WhatsAppClient {
   }
 
   /**
+   * Process commands from API (getInfo, logout, etc.)
+   */
+  async processCommands() {
+    try {
+      const commandFilePath = path.join(this.queueDir, 'wa-commands.json');
+
+      if (!fs.existsSync(commandFilePath)) {
+        return;
+      }
+
+      const commandData = JSON.parse(fs.readFileSync(commandFilePath, 'utf8'));
+
+      if (!commandData.lastCommand) {
+        return; // No command to process
+      }
+
+      console.log(`[Commands] Processing command: ${commandData.lastCommand}`);
+
+      let result = null;
+
+      switch (commandData.lastCommand) {
+        case 'getInfo':
+          result = await this.getInfo();
+          break;
+        case 'logout':
+          result = await this.logout();
+          break;
+        default:
+          result = { error: 'Unknown command' };
+      }
+
+      // Save result
+      const resultFilePath = path.join(this.queueDir, 'wa-command-result.json');
+      fs.writeFileSync(resultFilePath, JSON.stringify({
+        command: commandData.lastCommand,
+        result: result,
+        timestamp: new Date().toISOString()
+      }));
+
+      // Clear command
+      fs.writeFileSync(commandFilePath, JSON.stringify({
+        lastCommand: null,
+        timestamp: null
+      }));
+
+    } catch (error) {
+      console.error('[Commands] Error processing commands:', error);
+    }
+  }
+
+  /**
    * Start queue processor (runs every 5 seconds)
    */
   startQueueProcessor() {
@@ -164,6 +222,7 @@ export class WhatsAppClient {
 
     this.queueProcessorInterval = setInterval(async () => {
       await this.processMessageQueue();
+      await this.processCommands();
     }, 5000); // Check every 5 seconds
   }
 
@@ -286,6 +345,19 @@ export class WhatsAppClient {
       console.log('\n' + '='.repeat(60));
       console.log('  Buka WhatsApp > Linked Devices > Link a Device');
       console.log('='.repeat(60) + '\n');
+
+      // Save QR code data to shared file for dashboard access
+      try {
+        const qrDataPath = path.join(this.queueDir, 'qr-code.json');
+        fs.writeFileSync(qrDataPath, JSON.stringify({
+          qr: qr,
+          timestamp: new Date().toISOString(),
+          status: 'waiting_for_scan'
+        }));
+        console.log('  💾 QR code saved for dashboard access');
+      } catch (error) {
+        console.error('  ❌ Failed to save QR code:', error.message);
+      }
     });
 
     // Client ready
@@ -328,6 +400,16 @@ export class WhatsAppClient {
     // Authentication success
     this.client.on('authenticated', () => {
       console.log('✅ WhatsApp Authentication successful!');
+
+      // Clear QR code file since authentication is successful
+      try {
+        const qrDataPath = path.join(this.queueDir, 'qr-code.json');
+        if (fs.existsSync(qrDataPath)) {
+          fs.unlinkSync(qrDataPath);
+        }
+      } catch (error) {
+        console.error('Failed to clear QR code file:', error.message);
+      }
     });
 
     // Authentication failure
@@ -582,6 +664,70 @@ export class WhatsAppClient {
           }
           break;
 
+        case '/reset-client':
+          if (args.length === 0) {
+            response = '❌ Gunakan: /reset-client [nomor]\nContoh: /reset-client 6281234567890\n\nIni akan menghapus semua context chat dan data CRM dari client tersebut.';
+            break;
+          }
+          const clientId = args[0];
+
+          // Format the phone number to match WhatsApp ID format
+          let formattedId = clientId;
+          if (!formattedId.includes('@')) {
+            formattedId = `${formattedId}@c.us`;
+          }
+
+          try {
+            // Reset the session if it exists
+            if (this.sessions.has(formattedId)) {
+              await this.resetSession(formattedId);
+              console.log(`[WhatsApp Internal] Session reset for ${formattedId}`);
+            }
+
+            // Find user in database
+            const targetUser = await this.db.findUserByPhoneOrName(clientId);
+            if (!targetUser) {
+              response = `❌ Client tidak ditemukan: "${clientId}"`;
+              break;
+            }
+
+            // Delete all conversation history
+            await this.db.prisma.conversation.deleteMany({
+              where: { userId: targetUser.id }
+            });
+
+            // Reset user data (keep basic info but clear context)
+            await this.db.updateUser(targetUser.id, {
+              ticketPrice: null,
+              capacity: null,
+              event: null,
+              dealStatus: 'prospect',
+              meetingDate: null,
+              ticketSaleDate: null,
+              eventDayDate: null
+            });
+
+            response = `✅ *Context Reset Berhasil*\n\n`;
+            response += `Client: ${targetUser.nama || 'N/A'}\n`;
+            response += `Nomor: ${targetUser.id}\n\n`;
+            response += `Yang dihapus:\n`;
+            response += `✓ Semua conversation history\n`;
+            response += `✓ Event details & pricing\n`;
+            response += `✓ Meeting schedules\n`;
+            response += `✓ Session context\n\n`;
+            response += `Yang dipertahankan:\n`;
+            response += `• Nama: ${targetUser.nama || 'N/A'}\n`;
+            response += `• Instansi: ${targetUser.instansi || 'N/A'}\n`;
+            response += `• Deal status: Reset ke prospect\n\n`;
+            response += `Client bisa mulai percakapan baru dari awal.`;
+
+            console.log(`[WhatsApp Internal] Full reset completed for ${targetUser.id}`);
+          } catch (error) {
+            console.error('[WhatsApp Internal] Error resetting client:', error);
+            response = `❌ Terjadi error saat reset client: ${error.message}`;
+          }
+          break;
+
         case '/help-internal':
           response = `🤖 *NovaBot - Internal Commands*\n\n`;
           response += `*CRM & Leads:*\n`;
@@ -598,10 +744,13 @@ export class WhatsAppClient {
           response += `/events - List semua event\n`;
           response += `/pricing [min] [max] - Filter by harga\n`;
           response += `/history [nomor] - Riwayat chat\n\n`;
+          response += `*Management:*\n`;
+          response += `/reset-client [nomor] - Reset context & chat client\n\n`;
           response += `Contoh:\n`;
           response += `• /search John\n`;
           response += `• /client 6281234567890\n`;
-          response += `• /pricing 50000 100000`;
+          response += `• /pricing 50000 100000\n`;
+          response += `• /reset-client 6281234567890`;
           break;
 
         default:
@@ -696,7 +845,7 @@ export class WhatsAppClient {
           const internalCommands = [
             '/clients', '/client', '/leads', '/deals', '/stats',
             '/today', '/active', '/events', '/search', '/history',
-            '/pricing', '/help-internal'
+            '/pricing', '/reset-client', '/help-internal'
           ];
 
           if (internalCommands.includes(command)) {
@@ -786,6 +935,69 @@ Silakan tanyakan apa saja tentang NovaTix!`;
       } catch (replyError) {
         console.error('[WhatsApp] Error sending error message:', replyError);
       }
+    }
+  }
+
+  /**
+   * Get connected WhatsApp account info
+   */
+  async getInfo() {
+    try {
+      const state = await this.client.getState();
+
+      if (state !== 'CONNECTED') {
+        return {
+          connected: false,
+          state: state
+        };
+      }
+
+      const info = this.client.info;
+
+      return {
+        connected: true,
+        state: state,
+        phoneNumber: info?.wid?.user || null,
+        pushname: info?.pushname || null,
+        platform: info?.platform || null
+      };
+    } catch (error) {
+      console.error('[WhatsApp Client] Error getting info:', error);
+      return {
+        connected: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Logout and disconnect WhatsApp session
+   */
+  async logout() {
+    try {
+      console.log('🔓 Logging out WhatsApp session...');
+
+      // Clear QR code file
+      const qrDataPath = path.join(this.queueDir, 'qr-code.json');
+      if (fs.existsSync(qrDataPath)) {
+        fs.unlinkSync(qrDataPath);
+      }
+
+      // Logout from WhatsApp Web
+      await this.client.logout();
+
+      console.log('✅ WhatsApp session logged out successfully');
+
+      return {
+        success: true,
+        message: 'Logged out successfully. Scan QR code to reconnect.'
+      };
+    } catch (error) {
+      console.error('[WhatsApp Client] Error during logout:', error);
+      return {
+        success: false,
+        error: error.message
+      };
     }
   }
 
