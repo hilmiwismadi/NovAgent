@@ -1,9 +1,9 @@
 import { ChatGroq } from "@langchain/groq";
 import { ChatPromptTemplate, MessagesPlaceholder } from "@langchain/core/prompts";
 import { StringOutputParser } from "@langchain/core/output_parsers";
-import { novatixContext, getPricing } from "../knowledge/novatix-context.js";
-import { DatabaseService } from "../database/database-service.js";
-import { CalendarSyncService } from "../../packages/calendar/src/calendar-sync.js";
+import { novatixContext, getPricing } from "../../../../packages/knowledge/src/novatix-context.js";
+import { DatabaseService } from "../../../../packages/database/src/database-service.js";
+import { CalendarSyncService } from "../../../../packages/calendar/src/calendar-sync.js";
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -156,33 +156,16 @@ Variasi yang WAJIB dipakai:
 - Kamu cukup konfirmasi: "Oke siap! Meeting [tanggal] jam [waktu] ya. Nanti aku remind lagi"
 
 🚨 CONTOH KASUS NYATA YANG SALAH (JANGAN DIULANG!):
-❌ WRONG:
-Client: "Oke baik tapi tampaknya lewat chat bikin saya pusing"
-Bot: "Maaf! Saya paham. Mungkin lebih baik kita bicara langsung saja..."
-→ SALAH! Bot bilang "bicara langsung" tapi TIDAK ASK waktu meeting!
+❌ WRONG: Client bilang "pusing lewat chat" → Bot langsung kasih solusi tapi TIDAN ASK waktu meeting
+✅ CORRECT: Client bilang "pusing lewat chat" → Bot tanya "kapan enaknya meeting?"
 
-✅ CORRECT:
-Client: "Oke baik tapi tampaknya lewat chat bikin saya pusing"
-Bot: "Betul banget! Gimana kalau kita meeting aja biar lebih jelas? Kapan kira-kira ada waktu?"
+❌ WRONG: Client sudah tertarik dan tanya "lalu apa" → Bot lanjut jelasin fitur
+✅ CORRECT: Client sudah tertarik dan tanya "lalu apa" → Bot langsung offer meeting
 
-❌ WRONG:
-Client: "Iya oke sy tertarik lalu apa"
-Bot: "Baiklah! Jadi, jika kamu tertarik dengan NovaTix, kita bisa lanjutkan dengan membahas..."
-→ SALAH! Client sudah tertarik dan tanya "lalu apa" = mereka WAITING for meeting offer!
-
-✅ CORRECT:
-Client: "Iya oke sy tertarik lalu apa"
-Bot: "Oke siap! Biar lebih detail, yuk kita meeting. Kapan enaknya? Minggu ini available?"
-
-Contoh FLOW LENGKAP dengan Meeting:
-Client: "Mau bikin musik festival"
-Bot: "Wah seru! Musik festival pasti rame. Kira-kira kapasitasnya berapa orang ya? Sama tiketnya mau dijual berapa?"
-
-Client: "Kapasitas 1000 orang, tiket 150rb"
-Bot: "Oke noted! Kapasitas 1000 pax dengan harga tiket 150rb. Untuk pricing NovaTix ada 2 skema: Persenan atau Flat. Gimana kalau kita diskusi lebih lanjut? Kapan kira-kira ada waktu untuk meeting?"
-
-Client: "Besok jam 2 siang bisa?"
-Bot: "Oke siap! Meeting besok jam 2 siang ya. Nanti aku remind lagi. Kita bisa diskusi lebih detail tentang fitur-fitur yang cocok untuk musik festival kamu"
+Contoh FLOW yang BENAR dengan Meeting:
+1. Client kasih info event → Bot tanggapi + tanya detail (kapasitas/harga)
+2. Client kasih detail → Bot beri pricing + offer meeting
+3. Client kasih waktu → Bot konfirmasi dan kasih reminder
 
 Contoh pendekatan natural:
 - Kalau mereka bertanya tentang pricing atau fitur, jawab dulu pertanyaan mereka
@@ -258,49 +241,29 @@ MENGUMPULKAN DATA CRM:
 Kamu perlu tau: nama client, organisasi/EO mereka, dan nama event yang diplan. Tapi JANGAN minta semua sekaligus seperti formulir. Kumpulkan secara natural selama percakapan berlangsung.
 
 ❌ Contoh SALAH (terlalu kaku/template):
-Client: "Halo, mau tanya tentang NovaTix"
 Bot: "Terima kasih sudah menghubungi NovaTix. Mohon berikan informasi berikut:
 1. Nama Anda
 2. Nama organisasi
 3. Nama event"
-→ Ini terdengar seperti robot/formulir! JANGAN seperti ini!
+→ Ini terdengar seperti robot/formulir! JANGAN minta data seperti checklist!
 
-✅ Contoh BENAR 1 (Alur lengkap dari awal):
-Client: "Halo, mau tanya tentang NovaTix"
-Bot: "Hai! Ada yang bisa aku bantu tentang NovaTix?"
+✅ CONTOH ALUR YANG BENAR:
 
-Client: "Iya, mau tau fiturnya apa aja"
-Bot: "Siap! NovaTix ini platform ticketing untuk event yang punya fitur kelola tiket, payment gateway, analitik penjualan, dll. Oh iya, boleh kenalan dulu? Siapa nama kamu?"
+Contoh 1 - Client baru tanya fitur:
+1. Bot jawab pertanyaan fitur
+2. Bot kenalan: "Oh iya, boleh kenalan dulu? Siapa nama kamu?"
+3. Bot tanya organisasi: "Kamu dari organisasi/EO mana ya?"
+4. Bot tanya event: "Event apa yang lagi diplan nih?"
+5. Setelah dapat 3 data CRM, bot tanya detail event
+6. Setelah ada detail, bot offer meeting
 
-Client: "Nama aku Budi"
-Bot: "Hai Budi! Kamu dari organisasi/EO mana ya?"
+Contoh 2 - Client langsung tanya pricing:
+1. Bot jelaskan pricing tergantung event + kapasitas
+2. Bot kenalan + dapatkan data CRM (nama, org, event)
+3. Bot tanya detail (kapasitas, harga)
+4. Setelah lengkap, bot offer meeting
 
-Client: "Dari Citraland Event Organizer"
-Bot: "Oke noted, Citraland EO. Boleh tau event apa yang lagi diplan nih?"
-
-Client: "Mau bikin musik festival"
-Bot: "Wah seru! Musik festival pasti rame. Kira-kira kapasitasnya berapa orang ya? Sama tiketnya mau dijual berapa?"
-
-Client: "1000 orang, tiket 150rb"
-Bot: "Noted! Gimana kalau kita meeting untuk bahas lebih detail? Kapan aja boleh asal kasih tau dulu"
-[Data CRM sudah lengkap: Nama, Organisasi, Event. Sudah tanya detail kapasitas/harga. Sekarang tawarkan meeting]
-
-✅ Contoh BENAR 2 (Client langsung tanya pricing):
-Client: "Harganya berapa ya untuk pakai NovaTix?"
-Bot: "Hai! Senang bisa bantu. Untuk pricing tergantung dari event dan kapasitas. Btw, boleh kenalan dulu? Nama kamu siapa?"
-
-Client: "Sinta"
-Bot: "Hai Sinta! Dari organisasi mana nih?"
-
-Client: "Dari kampus, BEM UI"
-Bot: "Oke BEM UI. Eventnya apa yang mau pakai ticketing?"
-
-Client: "Event seminar teknologi"
-Bot: "Noted! Untuk seminar teknologi, kira-kira tiketnya dijual berapa dan kapasitasnya berapa orang? Biar aku bisa kasih pricing yang sesuai"
-
-Client: "500 orang, tiket 50rb"
-Bot: "Oke siap! Untuk event dengan kapasitas 500 pax dan harga 50rb, ada 2 skema pricing. Kalau mau bahas lebih detail, kita bisa meeting nih. Kapan enaknya?"
-[URUTAN: Nama → Org → Event → Detail → Tawarkan Meeting]
+KRITIAL: Data CRM WAJIB lengkap sebelum offer meeting!
 
 PRINSIP UTAMA:
 ✅ Jawab pertanyaan mereka dulu, baru tanya balik
@@ -543,14 +506,25 @@ Ingat: Percakapan yang enak lebih penting daripada cepat-cepat dapet data. Biark
     // Increment message count
     this.dataCollectionState.messageCount++;
 
-    // OPTIMIZATION: Extract entities from message using faster method
-    await this.extractContextFromMessageOptimized(userMessage);
+    // OPTIMIZATION: Check cache first for common queries
+    const cacheKey = this.getCacheKey(userMessage, this.userContext);
+    const cachedResponse = this.getCachedResponse(cacheKey);
+    if (cachedResponse) {
+      console.log(`[CACHE] Cache hit for: "${userMessage.substring(0, 30)}..."`);
+      return cachedResponse;
+    }
 
-    // OPTIMIZATION: Initialize calendar if not already done (non-blocking)
-    this.initializeCalendarAsync();
+    // OPTIMIZATION: Run non-blocking operations in parallel
+    const asyncOperations = [
+      this.extractContextFromMessageOptimized(userMessage),
+      this.initializeCalendarAsync(),
+      this.syncCalendarEventsAsync()
+    ];
 
-    // OPTIMIZATION: Sync calendar events if dates were extracted (non-blocking)
-    this.syncCalendarEventsAsync();
+    // Don't await these - let them run in background
+    Promise.all(asyncOperations).catch(error => {
+      console.error('[BACKGROUND] Async operations failed:', error.message);
+    });
 
     // Detect interest signals for meeting offer (CRITICAL for conversion!)
     const interestLevel = this.detectInterestSignals(userMessage);
@@ -595,11 +569,41 @@ INSTRUKSI WAJIB:
     }
 
     try {
-      // Call Groq model
-      const response = await this.model.invoke([
-        ...messages,
-        ...(additionalContext ? [{ role: "system", content: additionalContext }] : [])
-      ]);
+      // OPTIMIZATION: Add retry logic for LLM calls
+      let response = null;
+      let lastError = null;
+      const maxRetries = 3;
+
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          // Add timeout to LLM call (increased for reliability)
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('LLM timeout')), 25000)
+          );
+
+          const llmPromise = this.model.invoke([
+            ...messages,
+            ...(additionalContext ? [{ role: "system", content: additionalContext }] : [])
+          ]);
+
+          response = await Promise.race([llmPromise, timeoutPromise]);
+          break; // Success, exit retry loop
+        } catch (error) {
+          lastError = error;
+          console.error(`[LLM] Attempt ${attempt} failed:`, error.message);
+
+          if (attempt < maxRetries) {
+            // Exponential backoff
+            const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+            console.log(`[LLM] Retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        }
+      }
+
+      if (!response) {
+        throw lastError || new Error('LLM failed after retries');
+      }
 
       const botResponse = response.content;
 
@@ -619,6 +623,9 @@ INSTRUKSI WAJIB:
         this.saveConversationAsync(this.userId, userMessage, botResponse, toolsUsed);
       }
 
+      // OPTIMIZATION: Cache the response for future use
+      this.setCachedResponse(cacheKey, botResponse);
+
       // OPTIMIZATION: Log response time
       const responseTime = Date.now() - startTime;
       console.log(`[PERFORMANCE] Response time: ${responseTime}ms for message: "${userMessage.substring(0, 50)}..."`);
@@ -626,7 +633,14 @@ INSTRUKSI WAJIB:
       return botResponse;
     } catch (error) {
       console.error("Error calling Groq:", error);
-      throw new Error("Maaf, saya mengalami kendala teknis. Silakan coba lagi.");
+
+      // OPTIMIZATION: Return a fallback response instead of throwing
+      const fallbackResponse = "Maaf, saya sedang mengalami kendala teknis. Silakan coba lagi dalam beberapa saat.";
+
+      // Still cache the fallback to avoid repeated LLM failures
+      this.setCachedResponse(cacheKey, fallbackResponse);
+
+      return fallbackResponse;
     }
   }
 
@@ -695,41 +709,55 @@ ${meetingOfferGuidance}
 INSTRUCTION: Extract entities from user messages and provide helpful responses about event organization, pricing, and scheduling.`;
   }
 
-  // OPTIMIZATION: Async database operations
+  // OPTIMIZATION: Async database operations with timeout
   async saveConversationAsync(userId, userMessage, botResponse, toolsUsed) {
-    try {
-      await this.db.saveConversation(
-        userId,
-        userMessage,
-        botResponse,
-        toolsUsed,
-        {
-          source: 'whatsapp',
-          context: this.userContext,
-          toolsUsed
+    // Run in background without blocking response
+    setImmediate(async () => {
+      try {
+        // Add timeout to database operations
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Database operation timeout')), 5000)
+        );
+
+        const savePromise = this.db.saveConversation(
+          userId,
+          userMessage,
+          botResponse,
+          toolsUsed,
+          {
+            source: 'whatsapp',
+            context: this.userContext,
+            toolsUsed
+          }
+        );
+
+        await Promise.race([savePromise, timeoutPromise]);
+
+        // Update user info if we have any context data
+        const updateData = {};
+        if (this.userContext.nama) updateData.nama = this.userContext.nama;
+        if (this.userContext.instansi) updateData.instansi = this.userContext.instansi;
+        if (this.userContext.ticketPrice) updateData.ticketPrice = this.userContext.ticketPrice;
+        if (this.userContext.capacity) updateData.capacity = this.userContext.capacity;
+        if (this.userContext.eventName) updateData.event = this.userContext.eventName;
+
+        if (Object.keys(updateData).length > 0) {
+          const updatePromise = this.db.updateUser(userId, updateData);
+          await Promise.race([updatePromise, timeoutPromise]);
         }
-      );
 
-      // Update user info if we have any context data
-      const updateData = {};
-      if (this.userContext.nama) updateData.nama = this.userContext.nama;
-      if (this.userContext.instansi) updateData.instansi = this.userContext.instansi;
-      if (this.userContext.ticketPrice) updateData.ticketPrice = this.userContext.ticketPrice;
-      if (this.userContext.capacity) updateData.capacity = this.userContext.capacity;
-      if (this.userContext.eventName) updateData.event = this.userContext.eventName;
+        // Update session
+        const sessionPromise = this.db.updateSession(userId, this.userContext, true);
+        await Promise.race([sessionPromise, timeoutPromise]);
 
-      if (Object.keys(updateData).length > 0) {
-        await this.db.updateUser(userId, updateData);
+      } catch (dbError) {
+        console.error('[NovaBot] Database error (non-fatal):', dbError.message);
+        // Don't throw - database failures shouldn't break chat flow
       }
-
-      // Update session
-      await this.db.updateSession(userId, this.userContext, true);
-    } catch (dbError) {
-      console.error('[NovaBot] Database error (non-fatal):', dbError.message);
-    }
+    });
   }
 
-  // OPTIMIZATION: Async calendar operations
+  // OPTIMIZATION: Async calendar operations with timeout
   async syncCalendarEventsAsync() {
     if (!this.calendarInitialized) return;
 
@@ -737,13 +765,20 @@ INSTRUCTION: Extract entities from user messages and provide helpful responses a
       // Run in background without blocking
       setImmediate(async () => {
         try {
-          await this.syncCalendarEvents();
+          // Add timeout to calendar operations
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Calendar operation timeout')), 3000)
+          );
+
+          const syncPromise = this.syncCalendarEvents();
+          await Promise.race([syncPromise, timeoutPromise]);
         } catch (error) {
-          console.error('[NovaBot] Async calendar sync failed:', error);
+          console.error('[NovaBot] Async calendar sync failed:', error.message);
+          // Don't throw - calendar failures shouldn't break chat flow
         }
       });
     } catch (error) {
-      console.error('[NovaBot] Calendar sync initialization failed:', error);
+      console.error('[NovaBot] Calendar sync initialization failed:', error.message);
     }
   }
 
@@ -789,7 +824,9 @@ INSTRUCTION: Extract entities from user messages and provide helpful responses a
    * @returns {Object} Extracted entities
    */
   async extractEntitiesWithLLM(message) {
-    const systemPrompt = `Kamu adalah AI extractor untuk mengidentifikasi informasi dari pesan Bahasa Indonesia yang casual.
+    try {
+      // Use direct prompt instead of template to avoid variable errors
+      const prompt = `Kamu adalah AI extractor untuk mengidentifikasi informasi dari pesan Bahasa Indonesia yang casual.
 
 EKSTRAK ENTITAS BERDASARKAN CONTOH:
 - nama: Nama orang (contoh: "Budi", "John Doe")
@@ -819,21 +856,30 @@ ATURAN:
 - Untuk harga: konversi "k"/"rb"/"ribu" ke 1000, "juta" ke 1000000
 - Untuk tanggal: gunakan format YYYY-MM-DD
 - Kosongkan field jika tidak ada informasinya
-- Response harus dalam format JSON valid`;
+- Response harus dalam format JSON valid
 
-    const entityPrompt = ChatPromptTemplate.fromMessages([
-      ["system", systemPrompt],
-      ["human", "Pesan: {message}\n\nResponse:"]
-    ]);
+Sekarang extract dari pesan ini: "${message}"
 
-    const entityChain = entityPrompt.pipe(this.model).pipe(new StringOutputParser());
-    const response = await entityChain.invoke({ message });
+Response:`;
 
-    // Parse and validate the response
-    try {
-      return JSON.parse(response);
-    } catch (parseError) {
-      console.error('[DEBUG] Failed to parse LLM entity response:', parseError);
+      const response = await this.model.invoke(prompt);
+
+      // Extract JSON from the response
+      const jsonMatch = response.content.match(/\{[^}]+\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+
+      // Fallback: try to parse entire response as JSON
+      try {
+        return JSON.parse(response.content);
+      } catch (parseError) {
+        console.error('[DEBUG] Failed to parse LLM entity response:', parseError);
+        console.error('[DEBUG] Raw response:', response.content);
+        return {};
+      }
+    } catch (error) {
+      console.error('[DEBUG] LLM entity extraction failed:', error);
       return {};
     }
   }
@@ -987,7 +1033,12 @@ ATURAN:
     const datePatterns = [
       /(?:meeting|ketemu|janjian)\s+.*?(besok|lusa|minggu\s+depan|bulan\s+depan)/i,
       /(?:besok|lusa|minggu\s+depan|bulan\s+depan).*?(?:meeting|ketemu|janjian)/i,
-      /(?:besok|lusa|hari\s+\w+).*?(?:jam\s+\d{1,2}|pagi|siang|sore|malam)/i
+      /(?:besok|lusa|hari\s+\w+).*?(?:jam\s+\d{1,2}|pagi|siang|sore|malam)/i,
+      // Enhanced patterns for natural Indonesian word order
+      /(?:besok|lusa).*?(?:sore|pagi|siang|malam).*?(?:jam\s+\d{1,2}|\d{1,2})/i,
+      /(?:besok|lusa).*?(?:jam\s+\d{1,2}|\d{1,2}).*?(?:sore|pagi|siang|malam)/i,
+      /(?:sore|pagi|siang|malam).*?(?:besok|lusa).*?(?:jam\s+\d{1,2}|\d{1,2})/i,
+      /(?:jam\s+\d{1,2}|\d{1,2}).*?(?:besok|lusa).*?(?:sore|pagi|siang|malam)/i
     ];
 
     for (const pattern of datePatterns) {
@@ -1028,7 +1079,10 @@ ATURAN:
         /jam\s+(\d{1,2})\s*(?:wib|wit|wita)?/i, // "jam 10 WIB" or just "jam 10"
         /pukul\s+(\d{1,2})[:\.](\d{2})/i,      // "pukul 10:00"
         /pukul\s+(\d{1,2})\s*(?:wib|wit|wita)?/i, // "pukul 10"
-        /(\d{1,2})[:\.](\d{2})\s*(?:wib|wit|wita)/i  // "10:00 WIB"
+        /(\d{1,2})[:\.](\d{2})\s*(?:wib|wit|wita)/i, // "10:00 WIB"
+        // Enhanced patterns for natural word order
+        /(?:sore|pagi|siang|malam)\s+jam\s+(\d{1,2})/i, // "sore jam 3"
+        /(?:sore|pagi|siang|malam)\s+(\d{1,2})/i // "sore 3"
       ];
 
       // First, extract numeric hour
@@ -1052,7 +1106,8 @@ ATURAN:
         { pattern: /\b(\d{1,2})\s+pagi\b/i, adjustment: 0, maxHour: 11 },     // "10 pagi" = 10:00
         { pattern: /\b(\d{1,2})\s+siang\b/i, adjustment: 0, maxHour: 14 },    // "12 siang" = 12:00, "1 siang" = 13:00
         { pattern: /\b(\d{1,2})\s+sore\b/i, adjustment: 12, maxHour: 11 },    // "5 sore" = 17:00 (5 + 12)
-        { pattern: /\b(\d{1,2})\s+malam\b/i, adjustment: 12, maxHour: 11 }    // "10 malam" = 22:00 (10 + 12)
+        { pattern: /\b(\d{1,2})\s+malam\b/i, adjustment: 12, maxHour: 11 },    // "10 malam" = 22:00 (10 + 12)
+        // Handle "sore jam 3" pattern - this is already handled by timePatterns above
       ];
 
       for (const { pattern, adjustment, maxHour } of timeOfDayPatterns) {
