@@ -546,75 +546,27 @@ export default function Dashboard() {
             </div>
 
             {conversationSummary && (
-              <div style={{
-                position: 'absolute',
-                top: '80px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                width: '90%',
-                maxWidth: '800px',
-                maxHeight: '70vh',
-                backgroundColor: '#f0f7ff',
-                border: '2px solid #4CAF50',
-                borderRadius: '12px',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-                zIndex: 1000,
-                overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'column'
-              }}>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '15px 20px',
-                  borderBottom: '2px solid #4CAF50',
-                  backgroundColor: '#e3f2fd'
-                }}>
-                  <h3 style={{ margin: 0, color: '#2c5282', fontSize: '18px' }}>Conversation Summary</h3>
-                  <button
-                    onClick={() => setConversationSummary(null)}
-                    style={{
-                      background: '#f44336',
-                      border: 'none',
-                      fontSize: '16px',
-                      cursor: 'pointer',
-                      color: 'white',
-                      borderRadius: '50%',
-                      width: '32px',
-                      height: '32px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: 'bold'
-                    }}
-                  >
-                    ×
-                  </button>
-                </div>
-                <div style={{
-                  padding: '20px',
-                  overflow: 'auto',
-                  flex: 1,
-                  whiteSpace: 'pre-wrap',
-                  color: '#1a365d',
-                  lineHeight: '1.6',
-                  wordBreak: 'break-word'
-                }}>
-                  {conversationSummary.summary}
-                </div>
-                {conversationSummary.totalMessages && (
-                  <div style={{
-                    padding: '12px 20px',
-                    fontSize: '12px',
-                    color: '#718096',
-                    borderTop: '1px solid #ccc',
-                    backgroundColor: '#f0f7ff'
-                  }}>
-                    Total messages: {conversationSummary.totalMessages} |
-                    Last updated: {new Date(conversationSummary.timestamp).toLocaleString('id-ID')}
+              <div className="summary-modal-overlay" onClick={() => setConversationSummary(null)}>
+                <div className="summary-modal-content" onClick={(e) => e.stopPropagation()}>
+                  <div className="summary-modal-header">
+                    <h3>Conversation Summary</h3>
+                    <button
+                      onClick={() => setConversationSummary(null)}
+                      className="summary-modal-close"
+                    >
+                      ×
+                    </button>
                   </div>
-                )}
+                  <div className="summary-modal-body">
+                    {conversationSummary.summary}
+                  </div>
+                  {conversationSummary.totalMessages && (
+                    <div className="summary-modal-footer">
+                      Total messages: {conversationSummary.totalMessages} |
+                      Last updated: {new Date(conversationSummary.timestamp).toLocaleString('id-ID')}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 

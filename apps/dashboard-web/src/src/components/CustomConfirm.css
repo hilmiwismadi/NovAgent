@@ -1,5 +1,68 @@
 /* Filament-Inspired Clean Professional Confirm Styling */
 
+/* CSS Variables (inherited from Dashboard.css) */
+:root {
+  /* Primary Colors */
+  --primary: #dc2626;
+  --primary-50: #fef2f2;
+  --primary-100: #fee2e2;
+  --primary-200: #fecaca;
+  --primary-500: #ef4444;
+  --primary-600: #dc2626;
+  --primary-700: #b91c1c;
+
+  /* Neutral Colors */
+  --white: #ffffff;
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
+
+  /* Semantic Colors */
+  --success: #10b981;
+  --success-100: #d1fae5;
+  --success-600: #059669;
+
+  --warning: #f59e0b;
+  --warning-100: #fed7aa;
+  --warning-600: #d97706;
+
+  --danger: #ef4444;
+  --danger-100: #fee2e2;
+  --danger-600: #dc2626;
+
+  --info: #3b82f6;
+  --info-100: #dbeafe;
+  --info-600: #2563eb;
+
+  /* Shadows */
+  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+  /* Border Radius */
+  --radius-sm: 0.25rem;
+  --radius: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  /* Spacing */
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-3: 0.75rem;
+  --spacing-4: 1rem;
+  --spacing-5: 1.25rem;
+  --spacing-6: 1.5rem;
+  --spacing-8: 2rem;
+}
+
 /* Custom Confirm Overlay */
 .custom-confirm-overlay {
   position: fixed;
@@ -11,7 +74,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 1000;
+  z-index: 1200;
   animation: fadeIn 0.15s ease-out;
 }
 
@@ -128,11 +191,48 @@
   transform: translateY(1px);
 }
 
-/* Responsive Design */
-@media (max-width: 640px) {
+/* Enhanced Responsive Design */
+@media (max-width: 768px) {
+  .custom-confirm-overlay {
+    padding: var(--spacing-2);
+  }
+
   .custom-confirm {
     width: 95%;
     padding: var(--spacing-5);
+  }
+
+  .custom-confirm-icon svg {
+    width: 44px;
+    height: 44px;
+  }
+
+  .custom-confirm-title {
+    font-size: 1.125rem;
+  }
+
+  .custom-confirm-message {
+    font-size: 0.8125rem;
+  }
+
+  .custom-confirm-actions {
+    gap: var(--spacing-2);
+  }
+
+  .custom-confirm-btn {
+    padding: var(--spacing-3) var(--spacing-5);
+    font-size: 0.8125rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .custom-confirm {
+    width: 98%;
+    padding: var(--spacing-4);
+  }
+
+  .custom-confirm-icon {
+    margin-bottom: var(--spacing-4);
   }
 
   .custom-confirm-icon svg {
@@ -140,8 +240,12 @@
     height: 40px;
   }
 
+  .custom-confirm-content {
+    margin-bottom: var(--spacing-6);
+  }
+
   .custom-confirm-title {
-    font-size: 1.125rem;
+    font-size: 1rem;
   }
 
   .custom-confirm-message {
@@ -154,7 +258,8 @@
   }
 
   .custom-confirm-btn {
-    padding: var(--spacing-3) var(--spacing-4);
+    padding: var(--spacing-2) var(--spacing-4);
     font-size: 0.8125rem;
+    min-height: 44px; /* Better touch target */
   }
 }
