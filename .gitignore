@@ -52,3 +52,4 @@ SERENA_SETUP_README.md
 # Generated table image script
 generate_table_image.py
 *.png
+.serena/
