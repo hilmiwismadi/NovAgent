@@ -588,7 +588,10 @@ INSTRUKSI WAJIB:
 2. Untuk Persenan ${pricing.percentage.fee}: jelaskan sebagai "${pricing.percentage.fee} dari harga tiket"
 3. Untuk Flat ${pricing.flat.fee}: jelaskan sebagai "${pricing.flat.fee} per tiket terjual"
 4. Berikan kedua opsi dengan penjelasan singkat dan jelas
-5. JANGAN tambahkan perhitungan matematis atau contoh nominal]`;
+5. DILARANG KERAS: JANGAN tambahkan perhitungan matematis, contoh nominal, atau hasil perkalian!
+6. JANGAN SEKALI-KALI mengalikan persen dengan harga tiket atau kapasitas!
+7. JANGAN berikan contoh seperti "2% x 50.000 x 800 = X" - ini DILARANG!
+8. Hanya sebutkan persentase atau fee per tiket, tanpa perhitungan apa pun]`;
     }
 
     try {
