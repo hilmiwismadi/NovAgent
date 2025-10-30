@@ -4,11 +4,12 @@
  */
 
 import { google } from 'googleapis';
+import { TokenManager } from './token-manager.js';
 
 export class GoogleCalendarService {
   constructor() {
     this.calendar = null;
-    this.auth = null;
+    this.tokenManager = new TokenManager();
     this.isEnabled = process.env.GOOGLE_CALENDAR_ENABLED === 'true';
   }
 
@@ -22,21 +23,15 @@ export class GoogleCalendarService {
     }
 
     try {
-      // Create OAuth2 client
-      this.auth = new google.auth.OAuth2(
-        process.env.GOOGLE_CLIENT_ID,
-        process.env.GOOGLE_CLIENT_SECRET,
-        'urn:ietf:wg:oauth:2.0:oob' // For installed apps
-      );
+      // Initialize token manager
+      const tokenManagerInitialized = await this.tokenManager.initialize();
+      if (!tokenManagerInitialized) {
+        console.log('[Calendar] Token manager initialization failed');
+        return false;
+      }
 
-      // Set credentials with both access and refresh tokens
-      const credentials = {
-        refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
-        access_token: process.env.GOOGLE_ACCESS_TOKEN
-      };
-
-      this.auth.setCredentials(credentials);
-      console.log('[Calendar] Using provided access token directly...');
+      // Get authenticated client
+      this.auth = await this.tokenManager.getAuthClient();
 
       // Initialize calendar API
       this.calendar = google.calendar({ version: 'v3', auth: this.auth });
@@ -109,17 +104,22 @@ export class GoogleCalendarService {
 
       let response;
       try {
+        // Ensure we have a fresh auth client
+        this.auth = await this.tokenManager.getAuthClient();
+
         response = await this.calendar.events.insert({
           calendarId: process.env.GOOGLE_CALENDAR_ID || 'primary',
           resource: event,
           sendUpdates: 'all' // Send email notifications
         });
       } catch (error) {
-        // If token expired, try to refresh and retry once
-        if (error.message.includes('unauthorized') || error.message.includes('invalid_token')) {
-          console.log('[Calendar] Token expired, attempting refresh...');
+        // If auth error, try to force refresh and retry once
+        if (error.message.includes('unauthorized') || error.message.includes('invalid_token') ||
+            error.message.includes('invalid_grant') || error.message.includes('invalid_client')) {
+          console.log('[Calendar] Authentication error, attempting token refresh...');
           try {
-            await this.auth.refreshAccessToken();
+            await this.tokenManager.refreshToken();
+            this.auth = await this.tokenManager.getAuthClient();
             console.log('[Calendar] Token refreshed successfully, retrying event creation...');
             response = await this.calendar.events.insert({
               calendarId: process.env.GOOGLE_CALENDAR_ID || 'primary',
