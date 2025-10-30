@@ -346,114 +346,100 @@ Ingat: Percakapan yang enak lebih penting daripada cepat-cepat dapet data. Biark
    * Build dynamic guidance for sequential data collection
    * Bot will ask questions one by one in separate chat bubbles
    */
+  /**
+   * Build dynamic guidance for sequential data collection
+   * Bot will ask questions one by one in separate chat bubbles
+   */
   buildDataCollectionGuidance() {
-    const { messageCount, currentQuestionStage } = this.dataCollectionState;
-    let guidance = "\n\n[PANDUAN DATA COLLECTION - SEQUENTIAL QUESTIONING]";
+    let guidance = '\n\n🎯 DATA COLLECTION STRATEGY:\n';
+    guidance += 'Kumpulkan data satu per satu dengan natural. Jangan tanya semua dalam satu pesan!\n';
+    guidance += 'Fokus pada percakapan yang nyaman dan mengalir, bukan interogasi.\n';
 
-    // For new leads, we need to collect: Nama -> Instansi -> Event (in that order)
-    // Each question should be in a separate chat bubble for natural flow
+    // Check what data we already have
+    const hasBasicInfo = this.userContext.nama && this.userContext.instansi;
+    const hasEventInfo = this.userContext.event && this.userContext.capacity && this.userContext.ticketPrice;
+    const hasMeetingDate = this.userContext.meetingDate;
 
-    // Stage 1: Ask for Name (after initial greeting/inquiry - around message 2-3)
-    if (messageCount >= 2 && !this.userContext.nama && currentQuestionStage !== 'waiting_name') {
-      guidance += "\n\n🎯 PERTANYAAN BERIKUTNYA: NAMA CLIENT";
-      guidance += "\nSetelah jawab pertanyaan awal mereka, sekarang waktunya kenalan dengan tanya nama.";
-      guidance += "\n\nPILIH SALAH SATU variasi (jangan pakai yang sama terus):";
-      guidance += "\n- 'Oh iya, boleh kenalan dulu? Siapa nama kamu?'";
-      guidance += "\n- 'Btw, aku boleh tau nama kamu siapa?'";
-      guidance += "\n- 'Sebelum lanjut, boleh tau panggilannya siapa ya?'";
-      guidance += "\n- 'Aku tanya dulu ya, nama kamu siapa?'";
-      guidance += "\n\n⚠️ PENTING: HANYA tanya nama saja di bubble chat ini. JANGAN tanya yang lain!";
-      guidance += "\n⚠️ Tunggu mereka jawab dulu sebelum lanjut ke pertanyaan berikutnya.";
-
-      this.dataCollectionState.currentQuestionStage = 'waiting_name';
-      return guidance;
+    // Stage 1: Basic information collection
+    if (!this.userContext.nama) {
+      guidance += '\n📝 STAGE 1: Dapatkan Nama & Organisasi';
+      guidance += '\n- Tanya: "Nama siapa ya dan dari instansi/organisasi mana?"';
+      guidance += '\n- Natural: "Oke, mau tanya dulu nama dan dari organisasi mana ya?"';
+      this.dataCollectionState.currentQuestionStage = 'getting_name';
+    } else if (!this.userContext.instansi) {
+      guidance += '\n📝 STAGE 1: Dapatkan Organisasi';
+      guidance += '\n- Tanya: "Dari instansi/organisasi mana ya?"';
+      guidance += '\n- Natural: "Dari mana ya?" atau "Instansinya mana?"';
+      this.dataCollectionState.currentQuestionStage = 'getting_org';
     }
-
-    // Stage 2: Ask for Organization (after we got the name)
-    if (this.userContext.nama && !this.userContext.instansi && currentQuestionStage !== 'waiting_org') {
-      guidance += "\n\n🎯 PERTANYAAN BERIKUTNYA: ORGANISASI/INSTANSI";
-      guidance += `\nOke sudah dapat nama: ${this.userContext.nama}. Sekarang tanya instansi mereka.`;
-      guidance += "\n\nPILIH SALAH SATU variasi:";
-      guidance += `\n- 'Hai ${this.userContext.nama}! Kamu dari organisasi/EO mana ya?'`;
-      guidance += `\n- 'Senang kenalan ${this.userContext.nama}. Boleh tau dari instansi mana?'`;
-      guidance += `\n- 'Oke ${this.userContext.nama}, kamu represent organisasi apa nih?'`;
-      guidance += `\n- '${this.userContext.nama} dari tim/organisasi mana ya?'`;
-      guidance += "\n\n⚠️ PENTING: HANYA tanya organisasi/instansi di bubble chat ini. JANGAN tanya yang lain!";
-      guidance += "\n⚠️ Tunggu mereka jawab dulu sebelum lanjut ke pertanyaan berikutnya.";
-
-      this.dataCollectionState.currentQuestionStage = 'waiting_org';
-      return guidance;
+    // Stage 2: Event information collection
+    else if (!this.userContext.event) {
+      guidance += '\n🎉 STAGE 2: Dapatkan Info Event';
+      guidance += '\n- Setelah dapat nama&org, tanya: "Mau bikin event apa ya?"';
+      guidance += '\n- Natural: "Event nya apa ya?" atau "Mau bikin acara apa?"';
+      this.dataCollectionState.currentQuestionStage = 'getting_event';
+    } else if (!this.userContext.capacity) {
+      guidance += '\n👥 STAGE 2: Dapatkan Kapasitas';
+      guidance += '\n- Tanya: "Kira-kira kapasitasnya berapa orang?"';
+      guidance += '\n- Natural: "Kira-kira berapa orang ya?" atau "Estimasi kapasitas berapa?"';
+      this.dataCollectionState.currentQuestionStage = 'getting_capacity';
+    } else if (!this.userContext.ticketPrice) {
+      guidance += '\n💰 STAGE 2: Dapatkan Harga Tiket';
+      guidance += '\n- Tanya: "Tiketnya rencananya dijual berapa?"';
+      guidance += '\n- Natural: "Harga tiket berapa ya?" atau "Mau dijual berapa per tiket?"';
+      this.dataCollectionState.currentQuestionStage = 'getting_price';
     }
-
-    // Stage 3: Ask for Event Name (after we got name and organization)
-    if (this.userContext.nama && this.userContext.instansi && !this.userContext.eventName && currentQuestionStage !== 'waiting_event') {
-      guidance += "\n\n🎯 PERTANYAAN BERIKUTNYA: NAMA EVENT";
-      guidance += `\nSudah dapat: Nama (${this.userContext.nama}) dan Organisasi (${this.userContext.instansi}).`;
-      guidance += "\nSekarang tanya event yang mereka plan.";
-      guidance += "\n\nPILIH SALAH SATU variasi:";
-      guidance += "\n- 'Boleh tau event apa yang lagi diplan nih?'";
-      guidance += "\n- 'Eventnya tentang apa ya? Boleh cerita sedikit?'";
-      guidance += "\n- 'Oke noted. Event apa yang mau dikerjain?'";
-      guidance += "\n- 'Nah, untuk event yang mana nih yang butuh ticketing?'";
-      guidance += "\n\n⚠️ PENTING: HANYA tanya nama event di bubble chat ini. JANGAN tanya yang lain!";
-      guidance += "\n⚠️ Kalau mereka juga kasih info kapasitas/harga, bagus! Tapi fokus dulu ke event name.";
-
-      this.dataCollectionState.currentQuestionStage = 'waiting_event';
-      return guidance;
-    }
-
-    // All basic data collected - now can ask optional details if needed
-    if (this.userContext.nama && this.userContext.instansi && this.userContext.eventName) {
-      guidance += "\n\n✅ DATA DASAR SUDAH LENGKAP!";
-      guidance += `\n- Nama: ${this.userContext.nama}`;
-      guidance += `\n- Organisasi: ${this.userContext.instansi}`;
-      guidance += `\n- Event: ${this.userContext.eventName}`;
-
-      // Check if we need capacity/price for pricing discussion
-      const missingOptional = [];
-      if (!this.userContext.capacity) missingOptional.push("kapasitas");
-      if (!this.userContext.ticketPrice) missingOptional.push("harga tiket");
-
-      if (missingOptional.length > 0) {
-        guidance += `\n\nData optional yang masih bisa ditanya (kalau konteks pas): ${missingOptional.join(', ')}`;
-        guidance += "\nContoh: Kalau mereka nanya pricing, baru tanya 'Untuk pricing, kira-kira kapasitas venue berapa dan tiketnya mau dijual berapa?'";
-      } else {
-        guidance += "\n\n🎉 SEMUA DATA LENGKAP! Sekarang fokus bantu client dengan kebutuhan mereka.";
-      }
-
-      // ⭐ NEW: Suggest offering a meeting after data is complete and some discussion has happened
-      // Changed from messageCount >= 6 to >= 4 to offer meeting sooner
+    // Stage 3: Meeting offer stage
+    else if (hasEventInfo && !hasMeetingDate) {
+      const messageCount = this.dataCollectionState.messageCount || 0;
+      
       if (messageCount >= 4 && !this.userContext.meetingDate) {
-        guidance += "\n\n📅 SAATNYA TAWARKAN MEETING!";
-        guidance += "\nData sudah lengkap dan sudah ada diskusi. Sekarang waktunya tawarkan meeting untuk diskusi lebih lanjut.";
-        guidance += "\n\nPILIH SALAH SATU variasi (natural & casual):";
-        guidance += "\n- 'Gimana kalau kita diskusi lebih lanjut? Kapan kira-kira ada waktu untuk meeting?'";
-        guidance += "\n- 'Biar lebih jelas, mau ngobrol langsung gak? Meeting kapan enaknya?'";
-        guidance += "\n- 'Kalau mau bahas lebih detail, kita bisa meeting nih. Minggu ini ada waktu?'";
-        guidance += "\n- 'Oke noted! Mau ketemu untuk bahas lebih lanjut? Kapan aja boleh asal kasih tau dulu'";
-        guidance += "\n\n⚠️ PENTING:";
-        guidance += "\n- JANGAN kasih tanggal/waktu sendiri, TUNGGU mereka yang kasih tau";
-        guidance += "\n- Begitu mereka sebut tanggal (contoh: 'besok', '15 Oktober', 'minggu depan jam 2'), sistem akan otomatis simpan";
-        guidance += "\n- Kamu cukup konfirmasi: 'Oke siap! Meeting [tanggal] jam [waktu] ya'";
-        guidance += "\n\n🚫 CRITICAL: JANGAN bahas MoU/kontrak sebelum meeting dijadwalkan!";
+        guidance += '\n\n📅 SAATNYA TAWARKAN MEETING!';
+        guidance += '\nData sudah lengkap dan sudah ada diskusi. Sekarang waktunya tawarkan meeting untuk diskusi lebih lanjut.';
+        guidance += '\n\nPILIH SALAH SATU variasi (natural & casual):';
+        guidance += '\n- \'Gimana kalau kita diskusi lebih lanjut? Kapan kira-kira ada waktu untuk meeting?\'';
+        guidance += '\n- \'Biar lebih jelas, mau ngobrol langsung gak? Meeting kapan enaknya?\'';
+        guidance += '\n- \'Kalau mau bahas lebih detail, kita bisa meeting nih. Minggu ini ada waktu?\'';
+        guidance += '\n- \'Oke noted! Mau ketemu untuk bahas lebih lanjut? Kapan aja boleh asal kasih tau dulu\'';
+        guidance += '\n\n⚠️ PENTING:';
+        guidance += '\n- JANGAN kasih tanggal/waktu sendiri, TUNGGU mereka yang kasih tau';
+        guidance += '\n- Begitu mereka sebut tanggal (contoh: \'besok\', \'15 Oktober\', \'minggu depan jam 2\'), sistem akan otomatis simpan';
+        guidance += '\n- Kamu cukup konfirmasi: \'Oke siap! Meeting [tanggal] jam [waktu] ya. Nanti aku remind lagi\'';
+        guidance += '\n\n🚫 CRITICAL: JANGAN bahas MoU/kontrak sebelum meeting dijadwalkan!';
 
         this.dataCollectionState.currentQuestionStage = 'offering_meeting';
       } else if (this.userContext.meetingDate) {
-        guidance += "\n\n✅ MEETING SUDAH DIJADWALKAN!";
+        guidance += '\n\n✅ MEETING SUDAH DIJADWALKAN!';
         guidance += `\nMeeting date: ${this.userContext.meetingDate}`;
-        guidance += "\nFokus membantu client dengan pertanyaan mereka dan persiapan meeting.";
-        guidance += "\n\n⚠️ KALAU mereka tanya tentang MoU/kontrak:";
-        guidance += "\n- Bilang: 'Nanti kita finalisasi pas meeting ya!'";
-        guidance += "\n- Jangan langsung kirim template MoU atau bilang 'siap sign kontrak'";
-        guidance += "\n- Meeting dulu, BARU MoU!";
-      }
-
-      if (!this.dataCollectionState.currentQuestionStage || this.dataCollectionState.currentQuestionStage === 'waiting_event') {
-        this.dataCollectionState.currentQuestionStage = 'complete';
+        guidance += '\nFokus membantu client dengan pertanyaan mereka dan persiapan meeting.';
+        guidance += '\n\n⚠️ KALAU mereka tanya tentang MoU/kontrak:';
+        guidance += '\n- Bilang: \'Nanti kita finalisasi pas meeting ya!\'';
+        guidance += '\n- Jangan langsung kirim template MoU atau bilang \'siap sign kontrak\'';
+        guidance += '\n- Meeting dulu, BARU MoU!';
       }
     }
 
-    guidance += `\n\nMessage count: ${messageCount} | Current stage: ${currentQuestionStage}`;
+    if (!this.dataCollectionState.currentQuestionStage || this.dataCollectionState.currentQuestionStage === 'waiting_event') {
+      this.dataCollectionState.currentQuestionStage = 'complete';
+    }
+
+    // Add enhanced calendar confirmation guidance if meeting was just scheduled
+    if (hasMeetingDate && this.dataCollectionState.justScheduledMeeting) {
+      guidance += '\n\n📆 ENHANCED CALENDAR CONFIRMATION NEEDED!';
+      guidance += '\nSistem sudah otomatis buat Google Calendar event dengan detail lengkap.';
+      guidance += '\n\nBerikan konfirmasi yang RINCI dan BERGUNA:';
+      guidance += '\n- ✅ Konfirmasi tanggal & waktu: "Oke siap! Meeting [tanggal] jam [waktu] WIB ya"';
+      guidance += '\n- 📋 Berikan agenda meeting: "Kita akan bahas: fitur platform, pricing, dan implementasi"';
+      guidance += '\n- 🔔 Berikan info reminder: "Nanti aku remind 30 menit sebelum meeting"';
+      guidance += '\n- 📱 Info tambahan: "Detail meeting sudah aku kirim ke Google Calendar kamu"';
+      guidance += '\n\nContoh response lengkap:';
+      guidance += '\n"🎉 Oke siap! Meeting besok jam 10 pagi WIB ya. Sudah aku buatkan di Google Calendar dengan detail lengkap:"';
+      guidance += '\n"📋 Agenda: MoU discussion, platform demo, pricing negotiation"';
+      guidance += '\n"🔔 Aku remind 30 menit sebelum meeting. Link meeting akan dikirim H-1"';
+      guidance += '\n"Semua info lengkap sudah ada di calendar kamu. Siap untuk diskusi lebih detail!"';
+      
+      this.dataCollectionState.justScheduledMeeting = false; // Reset flag
+    }
 
     return guidance;
   }
@@ -926,10 +912,38 @@ ATURAN:
     }
 
     if (!this.userContext.instansi) {
-      const instansiMatch = message.match(/(?:dari\s+)([A-Za-z0-9\s]+?)(?:\s+ingin|\s+mau|$|,|\.)/i);
+      const instansiMatch = message.match(/(?:dari\s+)([A-Za-z0-9\s]+?)(?:\s+ingin|\s+mau|\s+namanya|$|,|\.)/i);
       if (instansiMatch && instansiMatch[1]) {
         this.userContext.instansi = instansiMatch[1].trim();
         console.log(`[DEBUG] Extracted instansi (fallback): ${instansiMatch[1]}`);
+      }
+    }
+
+    // Event name extraction fallback
+    if (!this.userContext.event) {
+      const eventPatterns = [
+        /(?:mau\s+(?:bikin|buat|adain)\s+)(.+?)(?:\s+kapasitas|\s+dengan|\s+kira|\s+harga|$|,|\.)/i,
+        /(?:mengadakan\s+)(.+?)(?:\s+dengan|\s+kapasitas|\s+harga|$|,|\.)/i,
+        /(?:event\s+)(.+?)(?:\s+dengan|\s+kapasitas|\s+harga|$|,|\.)/i,
+        /(?:acara\s+)(.+?)(?:\s+dengan|\s+kapasitas|\s+harga|$|,|\.)/i
+      ];
+      
+      for (const pattern of eventPatterns) {
+        const eventMatch = message.match(pattern);
+        if (eventMatch && eventMatch[1]) {
+          const eventName = eventMatch[1].trim();
+          // Clean up common filler words
+          const cleanEventName = eventName
+            .replace(/^(yang |ini |itu )/i, '')
+            .replace(/( ya|yah|dong|nih)$/i, '')
+            .trim();
+          
+          if (cleanEventName.length > 3) { // Minimum length to avoid noise
+            this.userContext.event = cleanEventName;
+            console.log(`[DEBUG] Extracted event name (fallback): ${cleanEventName}`);
+            break;
+          }
+        }
       }
     }
 
@@ -953,14 +967,35 @@ ATURAN:
       }
     }
 
-    // Capacity extraction fallback
-    if (lowerMessage.includes('kapasitas') || lowerMessage.includes('jumlah')) {
+    // Capacity extraction fallback - enhanced to handle "tiket" mentions
+    if (lowerMessage.includes('kapasitas') || lowerMessage.includes('jumlah') || 
+        (lowerMessage.includes('tiket') && /\d+\s*tiket/.test(lowerMessage))) {
       const capacityMatch = message.match(/(\d+[.,]?\d*)/i);
       if (capacityMatch) {
         const capacity = parseInt(capacityMatch[1].replace(/[.,]/g, ''));
         if (capacity >= 10 && capacity <= 100000 && capacity !== this.userContext.ticketPrice) {
           this.userContext.capacity = capacity;
           console.log(`[DEBUG] Extracted capacity (fallback): ${capacity}`);
+        }
+      }
+    }
+
+    // Meeting date extraction - parse Indonesian date/time expressions
+    const datePatterns = [
+      /(?:meeting|ketemu|janjian)\s+.*?(besok|lusa|minggu\s+depan|bulan\s+depan)/i,
+      /(?:besok|lusa|minggu\s+depan|bulan\s+depan).*?(?:meeting|ketemu|janjian)/i,
+      /(?:besok|lusa|hari\s+\w+).*?(?:jam\s+\d{1,2}|pagi|siang|sore|malam)/i
+    ];
+
+    for (const pattern of datePatterns) {
+      const dateMatch = message.match(pattern);
+      if (dateMatch && !this.userContext.meetingDate) {
+        const extractedDate = this.parseIndonesianDate(dateMatch[0], message);
+        if (extractedDate && !isNaN(extractedDate.getTime())) {
+          this.userContext.meetingDate = extractedDate;
+          this.dataCollectionState.justScheduledMeeting = true;
+          console.log(`[DEBUG] Extracted meeting date (fallback): ${extractedDate.toISOString()}`);
+          break;
         }
       }
     }
@@ -971,12 +1006,17 @@ ATURAN:
    * Supports: DD/MM/YYYY, DD-MM-YYYY, DD Month YYYY, relative dates
    * Also extracts time in WIB (GMT+7) format
    */
+  /**
+   * Parse Indonesian date formats to Date object
+   * Supports: DD/MM/YYYY, DD-MM-YYYY, DD Month YYYY, relative dates
+   * Also extracts time in WIB (GMT+7) format with Indonesian time-of-day words
+   */
   parseIndonesianDate(dateStr, fullMessage) {
     try {
       const lowerDateStr = dateStr.toLowerCase();
       const lowerMessage = fullMessage.toLowerCase();
 
-      // Extract time from the full message (look for "jam HH:MM" or "HH:MM")
+      // Extract time from the full message (look for "jam HH:MM", "HH:MM", or time-of-day words)
       let hour = 10; // Default 10 AM WIB
       let minute = 0;
 
@@ -988,18 +1028,59 @@ ATURAN:
         /(\d{1,2})[:\.](\d{2})\s*(?:wib|wit|wita)/i  // "10:00 WIB"
       ];
 
+      // First, extract numeric hour
+      let extractedHour = null;
       for (const pattern of timePatterns) {
         const timeMatch = lowerMessage.match(pattern);
         if (timeMatch) {
-          hour = parseInt(timeMatch[1]);
+          extractedHour = parseInt(timeMatch[1]);
           minute = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
 
           // Validate hour and minute
-          if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
-            console.log(`[DEBUG] Extracted time: ${hour}:${minute.toString().padStart(2, '0')} WIB`);
+          if (extractedHour >= 0 && extractedHour <= 23 && minute >= 0 && minute <= 59) {
+            console.log(`[DEBUG] Extracted base hour: ${extractedHour}:${minute.toString().padStart(2, '0')}`);
             break;
           }
         }
+      }
+
+      // Then, adjust for Indonesian time-of-day words if found
+      const timeOfDayPatterns = [
+        { pattern: /\b(\d{1,2})\s+pagi\b/i, adjustment: 0, maxHour: 11 },     // "10 pagi" = 10:00
+        { pattern: /\b(\d{1,2})\s+siang\b/i, adjustment: 0, maxHour: 14 },    // "12 siang" = 12:00, "1 siang" = 13:00
+        { pattern: /\b(\d{1,2})\s+sore\b/i, adjustment: 12, maxHour: 11 },    // "5 sore" = 17:00 (5 + 12)
+        { pattern: /\b(\d{1,2})\s+malam\b/i, adjustment: 12, maxHour: 11 }    // "10 malam" = 22:00 (10 + 12)
+      ];
+
+      for (const { pattern, adjustment, maxHour } of timeOfDayPatterns) {
+        const timeMatch = lowerMessage.match(pattern);
+        if (timeMatch) {
+          let baseHour = parseInt(timeMatch[1]);
+          
+          // Special cases for "siang"
+          if (pattern.toString().includes('siang')) {
+            if (baseHour <= 2) {
+              // "1 siang" = 13:00, "2 siang" = 14:00
+              baseHour += 12;
+            }
+            // "12 siang" = 12:00, values > 2 treated as 24h format
+          } else if (adjustment === 12) {
+            // "sore" and "malam" - add 12 hours
+            baseHour += 12;
+          }
+          
+          // Validate the converted hour
+          if (baseHour >= 0 && baseHour <= 23) {
+            hour = baseHour;
+            console.log(`[DEBUG] Time-of-day adjustment: ${timeMatch[0]} -> ${hour}:${minute.toString().padStart(2, '0')} WIB`);
+            break;
+          }
+        }
+      }
+
+      // If no time-of-day words found but we have extracted hour from patterns
+      if (extractedHour !== null && hour === 10) {
+        hour = extractedHour;
       }
 
       // Get current time in WIB (GMT+7)
@@ -1055,6 +1136,7 @@ ATURAN:
           // Create date in WIB timezone with extracted time
           const date = new Date(year, month, day, hour, minute, 0, 0);
           if (!isNaN(date.getTime())) {
+            console.log(`[DEBUG] Final parsed date: ${date.toISOString()} (WIB: ${date.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' })})`);
             return date;
           }
         }
@@ -1066,22 +1148,25 @@ ATURAN:
       if (numericMatch) {
         const day = parseInt(numericMatch[1]);
         const month = parseInt(numericMatch[2]) - 1; // 0-indexed
-        const year = numericMatch[3] ?
-          (numericMatch[3].length === 2 ? 2000 + parseInt(numericMatch[3]) : parseInt(numericMatch[3])) :
-          nowWIB.getFullYear();
+        const year = numericMatch[3] ? parseInt(numericMatch[3]) : nowWIB.getFullYear();
+
+        // Handle 2-digit years (e.g., "25" -> 2025)
+        const fullYear = year < 100 ? 2000 + year : year;
 
         if (month >= 0 && month <= 11 && day >= 1 && day <= 31) {
-          // Create date in WIB timezone with extracted time
-          const date = new Date(year, month, day, hour, minute, 0, 0);
+          const date = new Date(fullYear, month, day, hour, minute, 0, 0);
           if (!isNaN(date.getTime())) {
+            console.log(`[DEBUG] Final parsed numeric date: ${date.toISOString()} (WIB: ${date.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' })})`);
             return date;
           }
         }
       }
 
+      console.log(`[DEBUG] Date parsing failed for: "${dateStr}" with time ${hour}:${minute}`);
       return null;
+
     } catch (error) {
-      console.error('[DEBUG] Error parsing date:', error);
+      console.error('[NovaBot] Error parsing Indonesian date:', error);
       return null;
     }
   }
