@@ -13,6 +13,10 @@ export function useAlert() {
   const [confirm, setConfirm] = useState(null);
 
   const showAlert = useCallback((message, type = 'info') => {
+    // Prevent empty or null alerts from showing
+    if (!message || (typeof message === 'string' && message.trim() === '')) {
+      return;
+    }
     setAlert({ message, type });
   }, []);
 

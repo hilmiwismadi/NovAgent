@@ -550,8 +550,8 @@ Ingat: Percakapan yang enak lebih penting daripada cepat-cepat dapet data. Biark
     // Increment message count
     this.dataCollectionState.messageCount++;
 
-    // Extract price and capacity from message if available
-    this.extractContextFromMessage(userMessage);
+    // Extract entities from message using LLM
+    await this.extractContextFromMessage(userMessage);
 
     // Initialize calendar if not already done (lazy initialization)
     await this.initializeCalendar();
@@ -656,251 +656,188 @@ INSTRUKSI WAJIB:
     }
   }
 
-  extractContextFromMessage(message) {
+  async extractContextFromMessage(message) {
+    try {
+      // Use LLM for entity extraction
+      const entities = await this.extractEntitiesWithLLM(message);
+
+      // Update userContext with extracted entities
+      this.updateUserContext(entities);
+
+    } catch (error) {
+      console.error('[DEBUG] LLM entity extraction failed, using fallback:', error);
+      // Fallback to basic regex extraction
+      this.extractContextFromMessageFallback(message);
+    }
+  }
+
+  /**
+   * Extract entities using LLM with Indonesian language understanding
+   * @param {string} message - User message
+   * @returns {Object} Extracted entities
+   */
+  async extractEntitiesWithLLM(message) {
+    const systemPrompt = `Kamu adalah AI extractor untuk mengidentifikasi informasi dari pesan Bahasa Indonesia yang casual.
+
+EKSTRAK ENTITAS BERDASARKAN CONTOH:
+- nama: Nama orang (contoh: "Budi", "John Doe")
+- instansi: Nama organisasi/perusahaan (contoh: "PT Maju Jaya", "Acme Corp")
+- eventName: Nama event/acara (contoh: "Konser Musik", "Tech Conference 2024")
+- ticketPrice: Harga tiket dalam angka (contoh: 50000, 100000)
+- capacity: Kapasitas dalam angka (contoh: 1000, 500)
+- meetingDate: Tanggal meeting (format: YYYY-MM-DD)
+- ticketSaleDate: Tanggal mulai penjualan tiket (format: YYYY-MM-DD)
+- eventDayDate: Tanggal pelaksanaan event (format: YYYY-MM-DD)
+
+CONTOH EXTRACTION:
+Pesan: "Nama saya Budi dari PT Maju Jaya, mau buat event Konser Musik dengan harga 50k"
+Response: {"nama": "Budi", "instansi": "PT Maju Jaya", "eventName": "Konser Musik", "ticketPrice": 50000}
+
+Pesan: "Event kita kapasitasnya 1000 orang, tiket 75rb"
+Response: {"capacity": 1000, "ticketPrice": 75000}
+
+Pesan: "Meeting tanggal 15 Desember 2024 jam 10 pagi"
+Response: {"meetingDate": "2024-12-15"}
+
+Pesan: "Tiket mulai dijual 1 Januari 2025, eventnya 20 Februari 2025"
+Response: {"ticketSaleDate": "2025-01-01", "eventDayDate": "2025-02-20"}
+
+ATURAN:
+- Hanya extract entities yang jelas disebutkan dalam pesan
+- Untuk harga: konversi "k"/"rb"/"ribu" ke 1000, "juta" ke 1000000
+- Untuk tanggal: gunakan format YYYY-MM-DD
+- Kosongkan field jika tidak ada informasinya
+- Response harus dalam format JSON valid`;
+
+    const entityPrompt = ChatPromptTemplate.fromMessages([
+      ["system", systemPrompt],
+      ["human", "Pesan: {message}\n\nResponse:"]
+    ]);
+
+    const entityChain = entityPrompt.pipe(this.model).pipe(new StringOutputParser());
+    const response = await entityChain.invoke({ message });
+
+    // Parse and validate the response
+    try {
+      return JSON.parse(response);
+    } catch (parseError) {
+      console.error('[DEBUG] Failed to parse LLM entity response:', parseError);
+      return {};
+    }
+  }
+
+  /**
+   * Update userContext with extracted entities
+   * @param {Object} entities - Extracted entities from LLM
+   */
+  updateUserContext(entities) {
+    // Update nama only if not already set
+    if (entities.nama && !this.userContext.nama) {
+      this.userContext.nama = entities.nama.trim();
+      console.log(`[DEBUG] Extracted name: ${entities.nama}`);
+    }
+
+    // Update instansi only if not already set
+    if (entities.instansi && !this.userContext.instansi) {
+      this.userContext.instansi = entities.instansi.trim();
+      console.log(`[DEBUG] Extracted instansi: ${entities.instansi}`);
+    }
+
+    // Update eventName only if not already set
+    if (entities.eventName && !this.userContext.eventName) {
+      this.userContext.eventName = entities.eventName.trim();
+      console.log(`[DEBUG] Extracted event name: ${entities.eventName}`);
+    }
+
+    // Update ticketPrice (allows changes)
+    if (entities.ticketPrice) {
+      if (this.userContext.ticketPrice && this.userContext.ticketPrice !== entities.ticketPrice) {
+        console.log(`[DEBUG] Updating ticket price from ${this.userContext.ticketPrice} to ${entities.ticketPrice}`);
+      } else {
+        console.log(`[DEBUG] Extracted ticket price: ${entities.ticketPrice}`);
+      }
+      this.userContext.ticketPrice = entities.ticketPrice;
+    }
+
+    // Update capacity (allows changes)
+    if (entities.capacity) {
+      if (this.userContext.capacity && this.userContext.capacity !== entities.capacity) {
+        console.log(`[DEBUG] Updating capacity from ${this.userContext.capacity} to ${entities.capacity}`);
+      } else {
+        console.log(`[DEBUG] Extracted capacity: ${entities.capacity}`);
+      }
+      this.userContext.capacity = entities.capacity;
+    }
+
+    // Update dates
+    if (entities.meetingDate) {
+      this.userContext.meetingDate = entities.meetingDate;
+      console.log(`[DEBUG] Extracted meeting date: ${entities.meetingDate}`);
+    }
+
+    if (entities.ticketSaleDate) {
+      this.userContext.ticketSaleDate = entities.ticketSaleDate;
+      console.log(`[DEBUG] Extracted ticket sale date: ${entities.ticketSaleDate}`);
+    }
+
+    if (entities.eventDayDate) {
+      this.userContext.eventDayDate = entities.eventDayDate;
+      console.log(`[DEBUG] Extracted event day date: ${entities.eventDayDate}`);
+    }
+  }
+
+  /**
+   * Fallback entity extraction using simple regex patterns
+   * @param {string} message - User message
+   */
+  extractContextFromMessageFallback(message) {
     const lowerMessage = message.toLowerCase();
 
-    // Extract name (nama saya X, nama gue X, namaku X, perkenalkan X)
-    // IMPORTANT: Only extract if we don't have a name yet
+    // Simple fallback patterns for critical entities
     if (!this.userContext.nama) {
-      const namePatterns = [
-        // Explicit name introduction patterns
-        /(?:nama saya|nama gue|nama aku|namaku|nama ku)\s+(?:adalah\s+)?([A-Za-z\s]+?)(?:\s+dari|\s+nih|\s|$|,|\.)/i,
-        /(?:perkenalkan|perkenalkan nama saya|perkenalkan aku)\s+([A-Za-z\s]+?)(?:\s+dari|\s|$|,|\.)/i,
-        /(?:saya|aku|gue|gw)\s+([A-Za-z]+)(?:\s+dari|\s+nih)(?:\s|$)/i,
-        // Pattern: "halo <name> disini" or "<name> dari <org>"
-        /^(?:halo|hai)?\s*([A-Za-z]+)\s+(?:dari|disini|here)/i
-      ];
-
-      for (const pattern of namePatterns) {
-        const nameMatch = message.match(pattern);
-        if (nameMatch && nameMatch[1]) {
-          const nama = nameMatch[1].trim();
-          // Filter out common words that might be mistakenly captured
-          const excludeWords = ['mau', 'ingin', 'butuh', 'perlu', 'tanya', 'adalah', 'dari', 'di', 'ke', 'bisa', 'pusing', 'senang'];
-          if (nama.length > 2 && !excludeWords.includes(nama.toLowerCase())) {
-            this.userContext.nama = nama;
-            console.log(`[DEBUG] Extracted name: ${nama}`);
-            break;
-          }
-        }
+      const nameMatch = message.match(/(?:nama\s+(?:saya|gue|aku|adalah)\s+)([A-Za-z\s]+?)(?:\s+dari|$|,|\.)/i);
+      if (nameMatch && nameMatch[1]) {
+        this.userContext.nama = nameMatch[1].trim();
+        console.log(`[DEBUG] Extracted name (fallback): ${nameMatch[1]}`);
       }
     }
 
-    // Extract instansi/perusahaan
     if (!this.userContext.instansi) {
-      const instansiPatterns = [
-        /(?:organisasi|instansi|perusahaan)\s+([A-Za-z0-9\s]+?)(?:\s+ingin|\s+mau|\s+butuh|\s+yang|$|,|\.)/i,
-        /(?:dari|bekerja di)\s+(?:organisasi|instansi|perusahaan)?\s*([A-Za-z0-9\s]+?)(?:\s+ingin|\s+mau|\s+butuh|\s+yang|$|,|\.)/i,
-        /(?:saya dari)\s+([A-Za-z0-9\s]+?)(?:\s+ingin|\s+mau|\s+butuh|\s+yang|$|,|\.)/i
-      ];
+      const instansiMatch = message.match(/(?:dari\s+)([A-Za-z0-9\s]+?)(?:\s+ingin|\s+mau|$|,|\.)/i);
+      if (instansiMatch && instansiMatch[1]) {
+        this.userContext.instansi = instansiMatch[1].trim();
+        console.log(`[DEBUG] Extracted instansi (fallback): ${instansiMatch[1]}`);
+      }
+    }
 
-      for (const pattern of instansiPatterns) {
-        const instansiMatch = message.match(pattern);
-        if (instansiMatch && instansiMatch[1]) {
-          let instansi = instansiMatch[1].trim();
+    // Price extraction fallback
+    if (lowerMessage.includes('harga') || lowerMessage.includes('tiket')) {
+      const priceMatch = message.match(/(\d+[.,]?\d*)\s?(k|rb|ribu|juta)/i);
+      if (priceMatch) {
+        let price = parseInt(priceMatch[1].replace(/[.,]/g, ''));
+        const unit = priceMatch[2]?.toLowerCase();
 
-          // Clean up common trailing words
-          const cleanWords = ['saya', 'kami', 'kita', 'ini', 'itu'];
-          const words = instansi.split(' ');
-          const filteredWords = words.filter(w => !cleanWords.includes(w.toLowerCase()));
-          instansi = filteredWords.join(' ');
+        if (unit === 'k' || unit === 'rb' || unit === 'ribu') {
+          price *= 1000;
+        } else if (unit === 'juta') {
+          price *= 1000000;
+        }
 
-          if (instansi.length > 2) {
-            this.userContext.instansi = instansi;
-            console.log(`[DEBUG] Extracted instansi: ${instansi}`);
-            break;
-          }
+        if (price > 1000) {
+          this.userContext.ticketPrice = price;
+          console.log(`[DEBUG] Extracted ticket price (fallback): ${price}`);
         }
       }
     }
 
-    // Extract event name
-    if (!this.userContext.eventName) {
-      const eventPatterns = [
-        // Explicit event patterns with keywords
-        /(?:event|acara|kegiatan)\s+(?:bernama|dengan nama|namanya)?\s*([A-Za-z0-9\s]+?)(?:\s+dengan|\s+harga|\s+untuk|\s+yang|$|,|\.)/i,
-        /(?:mengadakan|menyelenggarakan|membuat)\s+(?:event|acara)?\s*([A-Za-z0-9\s]+?)(?:\s+dengan|\s+harga|\s+untuk|\s+yang|$|,|\.)/i,
-        /(?:untuk|buat)\s+(?:event|acara)\s+([A-Za-z0-9\s]+?)(?:\s+dengan|\s+harga|\s+untuk|\s+yang|$|,|\.)/i
-      ];
-
-      for (const pattern of eventPatterns) {
-        const eventMatch = message.match(pattern);
-        if (eventMatch && eventMatch[1]) {
-          let eventName = eventMatch[1].trim();
-
-          // Clean up common trailing words
-          const cleanWords = ['saya', 'kami', 'kita', 'ini', 'itu', 'yang', 'dengan'];
-          const words = eventName.split(' ');
-          const filteredWords = words.filter(w => !cleanWords.includes(w.toLowerCase()));
-          eventName = filteredWords.join(' ');
-
-          if (eventName.length > 3) {
-            this.userContext.eventName = eventName;
-            console.log(`[DEBUG] Extracted event name: ${eventName}`);
-            break;
-          }
-        }
-      }
-
-      // FALLBACK: If bot just asked about event and user responds with just a name
-      // Detect standalone event names (capitalized words/numbers suggesting an event title)
-      // Only if message is short (< 50 chars) and we have name+org already
-      if (!this.userContext.eventName && this.userContext.nama && this.userContext.instansi) {
-        const trimmed = message.trim();
-        // Check if message looks like an event name (has capital letters or numbers, not too long)
-        if (trimmed.length < 50 && trimmed.length > 3 && /[A-Z0-9]/.test(trimmed)) {
-          // Exclude common words that might be mistaken as event names
-          const excludePhrases = ['oke', 'baik', 'boleh', 'ya', 'tidak', 'nggak', 'belum', 'sudah', 'siap', 'ok'];
-          const isExcluded = excludePhrases.some(phrase => lowerMessage.includes(phrase));
-
-          if (!isExcluded) {
-            this.userContext.eventName = trimmed;
-            console.log(`[DEBUG] Extracted event name (fallback): ${trimmed}`);
-          }
-        }
-      }
-    }
-
-    // Extract price with support for "k", "rb", "ribu", "juta"
-    // Look for price near keywords: harga, tiket, biaya, rp
-    // Always try to extract if message contains price-related keywords
-    if (lowerMessage.includes('harga') || lowerMessage.includes('tiket') || lowerMessage.includes('biaya') || lowerMessage.includes('rp')) {
-      const pricePatterns = [
-        /(?:harga|tiket|biaya|rp)[^\d]*(\d+[.,]?\d*)\s?(k|rb|ribu|juta|rupiah)?/i,
-        /(\d+[.,]?\d*)\s?(k|rb|ribu|juta|rupiah)(?=.*(?:harga|tiket|biaya))/i
-      ];
-
-      for (const pattern of pricePatterns) {
-        const priceMatch = message.match(pattern);
-        if (priceMatch) {
-          let price = parseInt(priceMatch[1].replace(/[.,]/g, ''));
-          const unit = priceMatch[2]?.toLowerCase();
-
-          // Convert to actual value
-          if (unit === 'k' || unit === 'rb' || unit === 'ribu') {
-            price = price * 1000;
-          } else if (unit === 'juta') {
-            price = price * 1000000;
-          }
-
-          // Only set if it looks like a reasonable ticket price (> 1000)
-          if (price > 1000) {
-            // Update price even if already set (allows user to change their mind)
-            if (this.userContext.ticketPrice && this.userContext.ticketPrice !== price) {
-              console.log(`[DEBUG] Updating ticket price from ${this.userContext.ticketPrice} to ${price}`);
-            } else {
-              console.log(`[DEBUG] Extracted ticket price: ${price}`);
-            }
-            this.userContext.ticketPrice = price;
-            break;
-          }
-        }
-      }
-    }
-
-    // Extract capacity - look for numbers near capacity-related keywords
-    // Always try to extract if message contains capacity-related keywords
-    if (lowerMessage.includes('kapasitas') || lowerMessage.includes('orang') || lowerMessage.includes('penonton') || lowerMessage.includes('pax') || lowerMessage.includes('kursi') || lowerMessage.includes('jumlah')) {
-      const capacityPatterns = [
-        /(?:kapasitas|jumlah)[^\d]*(\d+[.,]?\d*)\s?(?:orang|pax|penonton|kursi)?/i,
-        /(?:ditonton|dihadiri)[^\d]*(\d+[.,]?\d*)\s?(?:orang|pax|penonton)?/i,
-        /(\d+[.,]?\d*)\s?(?:orang|pax|penonton|kursi)/i
-      ];
-
-      for (const pattern of capacityPatterns) {
-        const capacityMatch = message.match(pattern);
-        if (capacityMatch) {
-          const capacity = parseInt(capacityMatch[1].replace(/[.,]/g, ''));
-
-          // Only set if it looks like a reasonable capacity (between 10 and 100000)
-          // AND it's different from the ticket price (to avoid confusion)
-          if (capacity >= 10 && capacity <= 100000 && capacity !== this.userContext.ticketPrice) {
-            // Update capacity even if already set (allows user to change their mind)
-            if (this.userContext.capacity && this.userContext.capacity !== capacity) {
-              console.log(`[DEBUG] Updating capacity from ${this.userContext.capacity} to ${capacity}`);
-            } else {
-              console.log(`[DEBUG] Extracted capacity: ${capacity}`);
-            }
-            this.userContext.capacity = capacity;
-            break;
-          }
-        }
-      }
-    }
-
-    // FALLBACK: Extract standalone numbers as capacity after event name is known
-    // This handles responses like "1500" when bot asks about capacity
-    if (!this.userContext.capacity && this.userContext.eventName) {
-      const standaloneNumberMatch = message.match(/^(\d+[.,]?\d*)$/);
-      if (standaloneNumberMatch) {
-        const capacity = parseInt(standaloneNumberMatch[1].replace(/[.,]/g, ''));
-
-        // Reasonable capacity range and different from ticket price
+    // Capacity extraction fallback
+    if (lowerMessage.includes('kapasitas') || lowerMessage.includes('jumlah')) {
+      const capacityMatch = message.match(/(\d+[.,]?\d*)/i);
+      if (capacityMatch) {
+        const capacity = parseInt(capacityMatch[1].replace(/[.,]/g, ''));
         if (capacity >= 10 && capacity <= 100000 && capacity !== this.userContext.ticketPrice) {
           this.userContext.capacity = capacity;
           console.log(`[DEBUG] Extracted capacity (fallback): ${capacity}`);
-        }
-      }
-    }
-
-    // Extract dates for calendar events (3 flows)
-    // Flow 1: Meeting appointment dates
-    const meetingPatterns = [
-      /(?:meeting|rapat|bertemu|diskusi|consultation)\s+(?:tanggal|pada|di)?\s*(\d{1,2})[\/\-\s](\d{1,2})[\/\-\s]?(\d{2,4})?/i,
-      /(?:meeting|rapat|bertemu)\s+(?:besok|lusa|minggu depan|bulan depan)/i,
-      /(?:meeting|rapat|bertemu)(?:nya)?\s+(?:besok|lusa|minggu depan|bulan depan)/i,
-      /(?:jadwal|schedule)\s+(?:meeting|rapat)\s+(\d{1,2})\s+(\w+)/i
-    ];
-
-    for (const pattern of meetingPatterns) {
-      const match = message.match(pattern);
-      if (match) {
-        const dateStr = match[0];
-        const parsedDate = this.parseIndonesianDate(dateStr, message);
-        if (parsedDate) {
-          this.userContext.meetingDate = parsedDate;
-          console.log(`[DEBUG] Extracted meeting date: ${parsedDate}`);
-          break;
-        }
-      }
-    }
-
-    // Flow 2: Ticket sale start dates
-    const ticketSalePatterns = [
-      /(?:tiket|ticket)\s+(?:sale|mulai dijual|dibuka|launching)\s+(?:tanggal|pada|di)?\s*(\d{1,2})[\/\-\s](\d{1,2})[\/\-\s]?(\d{2,4})?/i,
-      /(?:penjualan tiket|ticket sale)\s+(?:tanggal|pada|di)?\s*(\d{1,2})[\/\-\s](\d{1,2})[\/\-\s]?(\d{2,4})?/i,
-      /(?:open sale|pre sale|early bird)\s+(\d{1,2})\s+(\w+)/i
-    ];
-
-    for (const pattern of ticketSalePatterns) {
-      const match = message.match(pattern);
-      if (match) {
-        const dateStr = match[0];
-        const parsedDate = this.parseIndonesianDate(dateStr, message);
-        if (parsedDate) {
-          this.userContext.ticketSaleDate = parsedDate;
-          console.log(`[DEBUG] Extracted ticket sale date: ${parsedDate}`);
-          break;
-        }
-      }
-    }
-
-    // Flow 3: Event D-Day dates
-    const eventDayPatterns = [
-      /(?:event|acara|konser|festival)\s+(?:tanggal|pada|di)?\s*(\d{1,2})[\/\-\s](\d{1,2})[\/\-\s]?(\d{2,4})?/i,
-      /(?:d-day|hari H|pelaksanaan)\s+(?:tanggal|pada|di)?\s*(\d{1,2})[\/\-\s](\d{1,2})[\/\-\s]?(\d{2,4})?/i,
-      /(?:tanggal|jadwal)\s+(\d{1,2})\s+(\w+)\s+(\d{4})/i
-    ];
-
-    for (const pattern of eventDayPatterns) {
-      const match = message.match(pattern);
-      if (match) {
-        const dateStr = match[0];
-        const parsedDate = this.parseIndonesianDate(dateStr, message);
-        if (parsedDate) {
-          this.userContext.eventDayDate = parsedDate;
-          console.log(`[DEBUG] Extracted event day date: ${parsedDate}`);
-          break;
         }
       }
     }

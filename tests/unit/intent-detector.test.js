@@ -3,8 +3,15 @@
  * Tests natural language understanding for Indonesian CRM commands
  */
 
-import { describe, test, expect, beforeEach } from '@jest/globals';
+import { describe, test, expect, beforeEach, jest } from '@jest/globals';
 import { IntentDetector } from '../../packages/database/utils/intent-detector.js';
+
+// Mock the LLM model for testing
+jest.mock('@langchain/groq', () => ({
+  ChatGroq: jest.fn().mockImplementation(() => ({
+    invoke: jest.fn().mockResolvedValue('{"intent": "stats", "confidence": 0.9, "entities": {}}')
+  }))
+}));
 
 describe('Intent Detector', () => {
   let detector;
@@ -14,56 +21,65 @@ describe('Intent Detector', () => {
   });
 
   describe('Slash Command Detection', () => {
-    test('should detect slash commands with 100% confidence', () => {
-      const result = detector.detectIntent('/stats');
+    test('should detect slash commands with 100% confidence', async () => {
+      const result = await detector.detectIntent('/stats');
 
       expect(result.intent).toBe('command');
       expect(result.confidence).toBe(1.0);
       expect(result.command).toBe('/stats');
     });
 
-    test('should extract command name from slash command', () => {
-      const result = detector.detectIntent('/search John Doe');
+    test('should extract command name from slash command', async () => {
+      const result = await detector.detectIntent('/search John Doe');
 
       expect(result.intent).toBe('command');
       expect(result.command).toBe('/search');
     });
 
-    test('should handle various slash commands', () => {
+    test('should handle various slash commands', async () => {
       const commands = ['/clients', '/leads', '/deals', '/today', '/active'];
 
-      commands.forEach(cmd => {
-        const result = detector.detectIntent(cmd);
+      for (const cmd of commands) {
+        const result = await detector.detectIntent(cmd);
         expect(result.intent).toBe('command');
         expect(result.command).toBe(cmd);
-      });
+      }
     });
   });
 
   describe('Stats Intent Detection', () => {
-    test('should detect "berapa jumlah client"', () => {
-      const result = detector.detectIntent('Berapa jumlah client kita?');
+    test('should detect "berapa jumlah client"', async () => {
+      // Mock LLM response for stats intent
+      detector.model.invoke = jest.fn().mockResolvedValue('{"intent": "stats", "confidence": 0.9, "entities": {}}');
+
+      const result = await detector.detectIntent('Berapa jumlah client kita?');
 
       expect(result.intent).toBe('stats');
       expect(result.confidence).toBeGreaterThan(0.6);
     });
 
-    test('should detect "total client"', () => {
-      const result = detector.detectIntent('Total client berapa?');
+    test('should detect "total client"', async () => {
+      detector.model.invoke = jest.fn().mockResolvedValue('{"intent": "stats", "confidence": 0.85, "entities": {}}');
+
+      const result = await detector.detectIntent('Total client berapa?');
 
       expect(result.intent).toBe('stats');
       expect(result.confidence).toBeGreaterThan(0.6);
     });
 
-    test('should detect "statistik" keyword', () => {
-      const result = detector.detectIntent('Mau lihat statistik dong');
+    test('should detect "statistik" keyword', async () => {
+      detector.model.invoke = jest.fn().mockResolvedValue('{"intent": "stats", "confidence": 0.8, "entities": {}}');
+
+      const result = await detector.detectIntent('Mau lihat statistik dong');
 
       expect(result.intent).toBe('stats');
       expect(result.confidence).toBeGreaterThan(0.5);
     });
 
-    test('should detect "conversion rate" question', () => {
-      const result = detector.detectIntent('Gimana conversion rate kita?');
+    test('should detect "conversion rate" question', async () => {
+      detector.model.invoke = jest.fn().mockResolvedValue('{"intent": "stats", "confidence": 0.9, "entities": {}}');
+
+      const result = await detector.detectIntent('Gimana conversion rate kita?');
 
       expect(result.intent).toBe('stats');
       expect(result.confidence).toBeGreaterThan(0.6);

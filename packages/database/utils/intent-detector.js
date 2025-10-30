@@ -1,334 +1,199 @@
 /**
  * Intent Detector for Natural Language Commands
- * Detects user intent from casual Indonesian chat
+ * Detects user intent from casual Indonesian chat using LLM
  */
+
+import { ChatGroq } from "@langchain/groq";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 export class IntentDetector {
   constructor() {
-    // Intent patterns dengan keywords dan variations
-    this.intents = {
-      // Stats & Analytics
-      stats: {
-        keywords: ['statistik', 'stats', 'overview', 'ringkasan', 'rangkuman', 'total', 'conversion'],
-        patterns: [
-          /berapa (jumlah )?client/i,
-          /ada berapa client/i,
-          /total client/i,
-          /jumlah client/i,
-          /berapa (jumlah )?user/i,
-          /conversion rate/i,
-          /gimana conversion rate/i,
-          /performa/i,
-          /kinerja/i
-        ]
-      },
+    // Initialize LLM for intent detection
+    this.model = new ChatGroq({
+      apiKey: process.env.GROQ_API_KEY,
+      model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+      temperature: parseFloat(process.env.AGENT_TEMPERATURE || "0.3"), // Lower temp for consistent classification
+      maxTokens: parseInt(process.env.AGENT_MAX_TOKENS || "256")
+    });
 
-      // List all clients
-      clients: {
-        keywords: ['daftar client', 'list client', 'semua client', 'lihat client'],
-        patterns: [
-          /daftar (semua )?client/i,
-          /list (semua )?client/i,
-          /tampilkan (semua )?client/i,
-          /lihat (semua )?client/i,
-          /siapa saja client/i,
-          /client apa saja/i
-        ]
-      },
-
-      // Leads/Prospects
-      leads: {
-        keywords: ['lead', 'prospect', 'calon client'],
-        patterns: [
-          /daftar lead/i,
-          /list lead/i,
-          /siapa (saja )?lead/i,
-          /ada lead (apa|siapa)/i,
-          /calon client/i,
-          /prospect/i,
-          /yang belum (deal|close)/i,
-          /yang masih prospect/i
-        ]
-      },
-
-      // Deals
-      deals: {
-        keywords: ['deal', 'closing', 'negosiasi'],
-        patterns: [
-          /berapa deal/i,
-          /ada (berapa )?deal/i,
-          /daftar deal/i,
-          /list deal/i,
-          /yang (sudah|udah) deal/i,
-          /siapa (yang )?(sudah|udah) deal/i,
-          /client deal/i,
-          /nego(siasi)?/i,
-          /yang (lagi|sedang) nego/i
-        ]
-      },
-
-      // Today's activity
-      today: {
-        keywords: ['hari ini', 'today', 'harian'],
-        patterns: [
-          /(aktivitas|activity) hari ini/i,
-          /hari ini (ada )?berapa/i,
-          /client (baru )?hari ini/i,
-          /conversation hari ini/i,
-          /chat hari ini/i,
-          /update (hari )?ini/i,
-          /report (hari )?ini/i,
-          /laporan (hari )?ini/i
-        ]
-      },
-
-      // Active sessions
-      active: {
-        keywords: ['aktif', 'active', 'online', 'sedang chat'],
-        patterns: [
-          /client (yang )?aktif/i,
-          /siapa (yang )?(sedang|lagi) (chat|online)/i,
-          /ada (yang|siapa) (chat|online)/i,
-          /(session|sesi) aktif/i,
-          /yang (sedang|lagi) aktif/i
-        ]
-      },
-
-      // Events
-      events: {
-        keywords: ['event', 'acara', 'kegiatan'],
-        patterns: [
-          /daftar event/i,
-          /list event/i,
-          /ada event apa/i,
-          /event apa saja/i,
-          /semua event/i,
-          /lihat event/i,
-          /tampilkan event/i
-        ]
-      },
-
-      // Search client
-      search: {
-        keywords: ['cari', 'search', 'find'],
-        patterns: [
-          /cari client/i,
-          /search client/i,
-          /find client/i,
-          /cari (nama|instansi|organisasi)/i,
-          /ada (gak|ga|tidak) client/i,
-          /siapa (yang|client) (dari|namanya)/i
-        ]
-      },
-
-      // Client detail
-      clientDetail: {
-        keywords: ['info client', 'detail client', 'data client'],
-        patterns: [
-          /info (tentang |client )?(.+)/i,
-          /detail (tentang |client )?(.+)/i,
-          /data (dari |client )?(.+)/i,
-          /siapa (itu )?(.+)/i,
-          /gimana (client )?(.+)/i,
-          /bagaimana (client )?(.+)/i
-        ]
-      },
-
-      // History
-      history: {
-        keywords: ['riwayat', 'history', 'percakapan', 'chat history'],
-        patterns: [
-          /riwayat (chat |percakapan )?(.+)/i,
-          /history (dari |client )?(.+)/i,
-          /percakapan (dengan |client )?(.+)/i,
-          /chat (dengan |dari |client )?(.+)/i,
-          /pernah (chat|bicara) (apa|tentang)/i
-        ]
-      },
-
-      // Pricing filter
-      pricing: {
-        keywords: ['harga', 'pricing', 'budget', 'biaya'],
-        patterns: [
-          /client (dengan |yang punya )?harga/i,
-          /harga (tiket )?(berapa|antara|dari|sampai)/i,
-          /budget (berapa|antara|dari)/i,
-          /range (harga|price|pricing)/i,
-          /filter (harga|price|pricing)/i
-        ]
-      },
-
-      // Help
-      help: {
-        keywords: ['help', 'bantuan', 'gimana', 'bagaimana', 'apa aja', 'bisa apa'],
-        patterns: [
-          /bisa (tanya|nanya) apa/i,
-          /apa (aja|saja) (yang )?bisa/i,
-          /gimana (cara)?/i,
-          /bagaimana (cara)?/i,
-          /butuh bantuan/i,
-          /tolong/i,
-          /help/i
-        ]
-      }
+    // Intent categories for classification
+    this.intentCategories = {
+      stats: 'statistik, overview, performa, conversion rate, total client, jumlah client',
+      clients: 'daftar client, list client, semua client, lihat client, client apa saja',
+      leads: 'daftar lead, list lead, prospect, calon client, yang belum deal, yang masih prospect',
+      deals: 'berapa deal, daftar deal, yang sudah deal, negosiasi, yang lagi nego, client deal',
+      today: 'aktivitas hari ini, update hari ini, report hari ini, laporan hari ini, client baru hari ini',
+      active: 'client aktif, sedang chat, online, sesi aktif, yang lagi aktif',
+      events: 'daftar event, list event, semua event, lihat event, event apa saja',
+      search: 'cari client, search client, find client, cari nama, cari instansi, cari organisasi',
+      clientDetail: 'info client, detail client, data client, siapa itu, gimana client, bagaimana client',
+      history: 'riwayat chat, history percakapan, chat dengan, pernah bicara, percakapan dengan',
+      pricing: 'harga, pricing, budget, biaya, range harga, filter harga, client dengan harga',
+      help: 'bantuan, help, gimana cara, bagaimana cara, bisa tanya apa, tolong, butuh bantuan'
     };
+
+    // Create intent classification prompt
+    const systemPrompt = `Kamu adalah AI classifier untuk mendeteksi intent dari pesan Bahasa Indonesia yang casual.
+
+KATEGORI INTENT YANG TERSEDIA:
+- stats: statistik, overview, performa, conversion rate, total client, jumlah client
+- clients: daftar client, list client, semua client, lihat client, client apa saja
+- leads: daftar lead, list lead, prospect, calon client, yang belum deal, yang masih prospect
+- deals: berapa deal, daftar deal, yang sudah deal, negosiasi, yang lagi nego, client deal
+- today: aktivitas hari ini, update hari ini, report hari ini, laporan hari ini, client baru hari ini
+- active: client aktif, sedang chat, online, sesi aktif, yang lagi aktif
+- events: daftar event, list event, semua event, lihat event, event apa saja
+- search: cari client, search client, find client, cari nama, cari instansi, cari organisasi
+- clientDetail: info client, detail client, data client, siapa itu, gimana client, bagaimana client
+- history: riwayat chat, history percakapan, chat dengan, pernah bicara, percakapan dengan
+- pricing: harga, pricing, budget, biaya, range harga, filter harga, client dengan harga
+- help: bantuan, help, gimana cara, bagaimana cara, bisa tanya apa, tolong, butuh bantuan
+
+RESPON DALAM FORMAT JSON:
+{
+  "intent": "nama_intent",
+  "confidence": 0.9,
+  "entities": {
+    "searchTerm": "jika ada pencarian",
+    "clientId": "jika ada identitas client",
+    "minPrice": "jika ada harga minimum",
+    "maxPrice": "jika ada harga maksimum"
+  }
+}
+
+CONTOH:
+Pesan: "Berapa jumlah client kita?"
+Response: {"intent": "stats", "confidence": 0.95, "entities": {}}
+
+Pesan: "Cari client dari PT Maju Jaya"
+Response: {"intent": "search", "confidence": 0.9, "entities": {"searchTerm": "PT Maju Jaya"}}
+
+Pesan: "Riwayat chat dengan Budi"
+Response: {"intent": "history", "confidence": 0.9, "entities": {"clientId": "Budi"}}
+
+Pesan: "Client dengan harga 50k-100k"
+Response: {"intent": "pricing", "confidence": 0.9, "entities": {"minPrice": 50000, "maxPrice": 100000}}
+
+Petunjuk:
+- Deteksi intent dengan confidence 0.6-1.0
+- Extract entities jika relevan (nama client, harga, dll)
+- Jika pesan tidak jelas, beri confidence rendah
+- Jika pesan dimulai dengan '/', itu adalah command intent`;
+
+    this.intentPrompt = ChatPromptTemplate.fromMessages([
+      ["system", systemPrompt],
+      ["human", "Pesan: {message}\n\nResponse:"]
+    ]);
+
+    this.outputParser = new StringOutputParser();
+    this.intentChain = this.intentPrompt.pipe(this.model).pipe(this.outputParser);
   }
 
   /**
-   * Detect intent from natural language message
+   * Detect intent from natural language message using LLM
    * @param {string} message - User message
    * @returns {Object} { intent: string, confidence: number, entities: Object }
    */
-  detectIntent(message) {
+  async detectIntent(message) {
     // Normalize whitespace: replace multiple spaces with single space
     message = message.replace(/\s+/g, ' ').trim();
     const lowerMessage = message.toLowerCase();
 
-    // Check if message is a slash command (skip NLU)
+    // Check if message is a slash command (skip LLM)
     if (lowerMessage.startsWith('/')) {
       return { intent: 'command', confidence: 1.0, command: lowerMessage.split(/\s+/)[0] };
     }
 
-    let bestMatch = { intent: null, confidence: 0, entities: {} };
+    try {
+      // Use LLM to detect intent
+      const response = await this.intentChain.invoke({ message });
 
-    // Check patterns first (higher priority)
-    for (const [intent, config] of Object.entries(this.intents)) {
-      for (const pattern of config.patterns) {
-        const match = lowerMessage.match(pattern);
-        if (match) {
-          const confidence = this.calculateConfidence(lowerMessage, config.keywords, pattern);
-          if (confidence > bestMatch.confidence) {
-            bestMatch = {
-              intent,
-              confidence,
-              entities: this.extractEntities(intent, match, message)
-            };
-          }
-        }
-      }
+      // Parse JSON response from LLM
+      const result = JSON.parse(response);
+
+      // Validate and normalize the result
+      return {
+        intent: result.intent || 'unknown',
+        confidence: Math.min(Math.max(result.confidence || 0.6, 0.6), 1.0),
+        entities: result.entities || {}
+      };
+    } catch (error) {
+      console.error('Error detecting intent with LLM:', error);
+
+      // Fallback to basic keyword matching
+      return this.fallbackIntentDetection(message);
     }
-
-    // Check keywords if no pattern match
-    if (bestMatch.confidence === 0) {
-      for (const [intent, config] of Object.entries(this.intents)) {
-        for (const keyword of config.keywords) {
-          if (lowerMessage.includes(keyword.toLowerCase())) {
-            const confidence = 0.6; // Lower confidence for keyword-only match
-            /* istanbul ignore next */
-            if (confidence > bestMatch.confidence) {
-              bestMatch = {
-                intent,
-                confidence,
-                entities: this.extractEntities(intent, null, message)
-              };
-            }
-          }
-        }
-      }
-    }
-
-    return bestMatch;
   }
 
   /**
-   * Calculate confidence score
+   * Fallback intent detection using basic keywords
+   * @param {string} message - User message
+   * @returns {Object} { intent: string, confidence: number, entities: Object }
    */
-  calculateConfidence(message, keywords, pattern) {
-    let confidence = 0.7; // Base confidence for pattern match
+  fallbackIntentDetection(message) {
+    const lowerMessage = message.toLowerCase();
 
-    // Boost if keywords also present
-    const keywordCount = keywords.filter(kw =>
-      message.toLowerCase().includes(kw.toLowerCase())
-    ).length;
-
-    confidence += (keywordCount * 0.1);
-
-    // Boost for exact matches
-    if (pattern.test(message) && message.split(' ').length <= 5) {
-      confidence += 0.15;
+    // Basic keyword matching as fallback
+    for (const [intent, keywords] of Object.entries(this.intentCategories)) {
+      if (keywords.split(', ').some(keyword => lowerMessage.includes(keyword.trim()))) {
+        return {
+          intent,
+          confidence: 0.6,
+          entities: this.extractBasicEntities(message, intent)
+        };
+      }
     }
 
-    return Math.min(confidence, 1.0);
+    return {
+      intent: 'unknown',
+      confidence: 0.5,
+      entities: {}
+    };
   }
 
   /**
-   * Extract entities from message based on intent
+   * Basic entity extraction for fallback
+   * @param {string} message - User message
+   * @param {string} intent - Detected intent
+   * @returns {Object} Extracted entities
    */
-  extractEntities(intent, match, originalMessage) {
+  extractBasicEntities(message, intent) {
     const entities = {};
-    const message = originalMessage.replace(/\s+/g, ' ').trim();
 
-    switch (intent) {
-      case 'search':
-      case 'clientDetail':
-        // Extract search term (anything after "cari", "info", etc.)
-        const searchPatterns = [
-          /cari (client )?(.+)/i,
-          /search (client )?(.+)/i,
-          /info (tentang |client )?(.+)/i,
-          /detail (client )?(.+)/i,
-          /data (dari |client )?(.+)/i,
-          /siapa itu (.+)/i
-        ];
-
-        for (const pattern of searchPatterns) {
-          const m = message.match(pattern);
-          if (m && m[m.length - 1]) {
-            entities.searchTerm = m[m.length - 1].trim();
-            break;
-          }
+    if (intent === 'search' || intent === 'clientDetail') {
+      // Extract search terms (simple keyword-based)
+      const searchKeywords = ['cari', 'search', 'info', 'detail', 'data', 'siapa'];
+      for (const keyword of searchKeywords) {
+        const regex = new RegExp(`${keyword}\\s+(.+)`, 'i');
+        const match = message.match(regex);
+        if (match && match[1]) {
+          entities.searchTerm = match[1].trim();
+          break;
         }
-        break;
+      }
+    }
 
-      case 'pricing':
-        // Extract price range
-        const priceMatch = message.match(/(\d+)k?\s*-?\s*(\d+)k?/i);
-        if (priceMatch) {
-          /* istanbul ignore next */
-          entities.minPrice = parseInt(priceMatch[1]) * (priceMatch[1].length <= 3 ? 1000 : 1);
-          /* istanbul ignore next */
-          entities.maxPrice = parseInt(priceMatch[2]) * (priceMatch[2].length <= 3 ? 1000 : 1);
+    if (intent === 'history') {
+      // Extract client name for history
+      const historyKeywords = ['riwayat', 'history', 'chat dengan', 'percakapan dengan'];
+      for (const keyword of historyKeywords) {
+        const regex = new RegExp(`${keyword}\\s+(.+)`, 'i');
+        const match = message.match(regex);
+        if (match && match[1]) {
+          entities.clientId = match[1].trim();
+          break;
         }
-
-        // Handle "dibawah X", "diatas X"
-        const belowMatch = message.match(/di ?bawah (\d+)k?/i);
-        const aboveMatch = message.match(/di ?atas (\d+)k?/i);
-
-        if (belowMatch) {
-          entities.minPrice = 0;
-          /* istanbul ignore next */
-          entities.maxPrice = parseInt(belowMatch[1]) * (belowMatch[1].length <= 3 ? 1000 : 1);
-        }
-
-        if (aboveMatch) {
-          /* istanbul ignore next */
-          entities.minPrice = parseInt(aboveMatch[1]) * (aboveMatch[1].length <= 3 ? 1000 : 1);
-          entities.maxPrice = 999999999;
-        }
-        break;
-
-      case 'history':
-        // Extract client identifier from history request
-        const historyPatterns = [
-          /riwayat (chat |percakapan )?(dengan |client )?(.+)/i,
-          /history (dari |client )?(.+)/i,
-          /percakapan (dengan |client )?(.+)/i,
-          /chat (dengan |dari |client )?(.+)/i
-        ];
-
-        for (const pattern of historyPatterns) {
-          const m = message.match(pattern);
-          if (m && m[m.length - 1]) {
-            entities.clientId = m[m.length - 1].trim();
-            break;
-          }
-        }
-        break;
+      }
     }
 
     return entities;
   }
 
+  
   /**
    * Convert intent to command
    */

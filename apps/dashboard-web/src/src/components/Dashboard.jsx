@@ -521,23 +521,11 @@ export default function Dashboard() {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Chat: {selectedClient.nama || formatPhone(selectedClient.id)}</h2>
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <div className="modal-header-actions">
                 <button
                   onClick={handleGetContextSummary}
                   disabled={loadingSummary || conversations.length === 0}
                   className="context-summary-btn"
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: '#4CAF50',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: loadingSummary || conversations.length === 0 ? 'not-allowed' : 'pointer',
-                    fontSize: '14px',
-                    opacity: loadingSummary || conversations.length === 0 ? 0.6 : 1,
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0
-                  }}
                 >
                   {loadingSummary ? 'Loading...' : 'Summary'}
                 </button>
