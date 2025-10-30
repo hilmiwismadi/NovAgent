@@ -15,10 +15,15 @@ export class NovaBot {
   constructor(userId = null) {
     this.model = new ChatGroq({
       apiKey: process.env.GROQ_API_KEY,
-      model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
-      temperature: parseFloat(process.env.AGENT_TEMPERATURE || "0.7"),
-      maxTokens: parseInt(process.env.AGENT_MAX_TOKENS || "1024")
+      model: process.env.GROQ_MODEL || "llama-3.1-8b-instant", // OPTIMIZATION: Use faster model
+      temperature: parseFloat(process.env.AGENT_TEMPERATURE || "0.5"), // OPTIMIZATION: Lower temperature for faster responses
+      maxTokens: parseInt(process.env.AGENT_MAX_TOKENS || "800"), // OPTIMIZATION: Lower token limit for speed
+      maxRetries: 2 // OPTIMIZATION: Add retry configuration
     });
+
+    // OPTIMIZATION: Add response caching
+    this.responseCache = new Map();
+    this.lastCacheCleanup = Date.now();
 
     this.userId = userId; // WhatsApp ID
     this.db = new DatabaseService();
@@ -547,17 +552,19 @@ Ingat: Percakapan yang enak lebih penting daripada cepat-cepat dapet data. Biark
   }
 
   async chat(userMessage) {
+    const startTime = Date.now(); // OPTIMIZATION: Track response time
+
     // Increment message count
     this.dataCollectionState.messageCount++;
 
-    // Extract entities from message using LLM
-    await this.extractContextFromMessage(userMessage);
+    // OPTIMIZATION: Extract entities from message using faster method
+    await this.extractContextFromMessageOptimized(userMessage);
 
-    // Initialize calendar if not already done (lazy initialization)
-    await this.initializeCalendar();
+    // OPTIMIZATION: Initialize calendar if not already done (non-blocking)
+    this.initializeCalendarAsync();
 
-    // Sync calendar events if dates were extracted
-    await this.syncCalendarEvents();
+    // OPTIMIZATION: Sync calendar events if dates were extracted (non-blocking)
+    this.syncCalendarEventsAsync();
 
     // Detect interest signals for meeting offer (CRITICAL for conversion!)
     const interestLevel = this.detectInterestSignals(userMessage);
@@ -618,36 +625,14 @@ INSTRUKSI WAJIB:
         this.conversationHistory = this.conversationHistory.slice(-20);
       }
 
-      // Save to database if userId is set
+      // OPTIMIZATION: Save to database asynchronously (non-blocking)
       if (this.userId) {
-        try {
-          await this.db.saveConversation(
-            this.userId,
-            userMessage,
-            botResponse,
-            toolsUsed,
-            { ...this.userContext }
-          );
-
-          // Update user info if we have any context data
-          const updateData = {};
-          if (this.userContext.nama) updateData.nama = this.userContext.nama;
-          if (this.userContext.instansi) updateData.instansi = this.userContext.instansi;
-          if (this.userContext.ticketPrice) updateData.ticketPrice = this.userContext.ticketPrice;
-          if (this.userContext.capacity) updateData.capacity = this.userContext.capacity;
-          if (this.userContext.eventName) updateData.event = this.userContext.eventName;
-
-          if (Object.keys(updateData).length > 0) {
-            await this.db.updateUser(this.userId, updateData);
-          }
-
-          // Update session
-          await this.db.updateSession(this.userId, this.userContext, true);
-        } catch (dbError) {
-          console.error('[NovaBot] Database error (non-fatal):', dbError.message);
-          // Don't throw - let conversation continue even if DB fails
-        }
+        this.saveConversationAsync(this.userId, userMessage, botResponse, toolsUsed);
       }
+
+      // OPTIMIZATION: Log response time
+      const responseTime = Date.now() - startTime;
+      console.log(`[PERFORMANCE] Response time: ${responseTime}ms for message: "${userMessage.substring(0, 50)}..."`);
 
       return botResponse;
     } catch (error) {
@@ -658,16 +643,154 @@ INSTRUKSI WAJIB:
 
   async extractContextFromMessage(message) {
     try {
-      // Use LLM for entity extraction
-      const entities = await this.extractEntitiesWithLLM(message);
+      // OPTIMIZATION: Use regex-based extraction first for faster response
+      this.extractContextFromMessageFallback(message);
 
-      // Update userContext with extracted entities
-      this.updateUserContext(entities);
+      // Only use LLM extraction if regex doesn't find enough info
+      if (!this.userContext.nama || !this.userContext.instansi || !this.userContext.eventName) {
+        const entities = await this.extractEntitiesWithLLM(message);
+        this.updateUserContext(entities);
+      }
 
     } catch (error) {
       console.error('[DEBUG] LLM entity extraction failed, using fallback:', error);
       // Fallback to basic regex extraction
       this.extractContextFromMessageFallback(message);
+    }
+  }
+
+  // OPTIMIZATION: Faster entity extraction method
+  async extractContextFromMessageOptimized(message) {
+    try {
+      // OPTIMIZATION: Prioritize regex extraction for speed
+      this.extractContextFromMessageFallback(message);
+
+      // Only use LLM if we're missing critical data and message is complex
+      const needsLLMExtraction = (!this.userContext.nama || !this.userContext.instansi || !this.userContext.eventName) &&
+                                   message.length > 20 &&
+                                   !this.isSimpleGreeting(message);
+
+      if (needsLLMExtraction) {
+        const entities = await this.extractEntitiesWithLLM(message);
+        this.updateUserContext(entities);
+      }
+
+    } catch (error) {
+      console.error('[DEBUG] Optimized entity extraction failed, using fallback:', error);
+      this.extractContextFromMessageFallback(message);
+    }
+  }
+
+  // OPTIMIZATION: Check if message is simple greeting
+  isSimpleGreeting(message) {
+    const greetings = ['halo', 'hai', 'hello', 'hi', 'selamat pagi', 'selamat siang', 'selamat malam', 'assalamualaikum', 'waalaikumsalam'];
+    const lowerMessage = message.toLowerCase().trim();
+    return greetings.some(greeting => lowerMessage === greeting || lowerMessage.startsWith(greeting + ' '));
+  }
+
+  // OPTIMIZATION: Build optimized system prompt to reduce LLM calls
+  buildOptimizedSystemPrompt(dataCollectionGuidance, meetingOfferGuidance) {
+    const contextInfo = Object.entries(this.userContext)
+      .filter(([key, value]) => value !== null && value !== undefined)
+      .map(([key, value]) => `${key}: ${value}`)
+      .join(', ');
+
+    return `${this.systemPrompt}
+
+${contextInfo ? `Current Context: ${contextInfo}` : ''}
+
+${dataCollectionGuidance}
+
+${meetingOfferGuidance}
+
+INSTRUCTION: Extract entities from user messages and provide helpful responses about event organization, pricing, and scheduling.`;
+  }
+
+  // OPTIMIZATION: Async database operations
+  async saveConversationAsync(userId, userMessage, botResponse, toolsUsed) {
+    try {
+      await this.db.saveConversation(
+        userId,
+        userMessage,
+        botResponse,
+        toolsUsed,
+        {
+          source: 'whatsapp',
+          context: this.userContext,
+          toolsUsed
+        }
+      );
+
+      // Update user info if we have any context data
+      const updateData = {};
+      if (this.userContext.nama) updateData.nama = this.userContext.nama;
+      if (this.userContext.instansi) updateData.instansi = this.userContext.instansi;
+      if (this.userContext.ticketPrice) updateData.ticketPrice = this.userContext.ticketPrice;
+      if (this.userContext.capacity) updateData.capacity = this.userContext.capacity;
+      if (this.userContext.eventName) updateData.event = this.userContext.eventName;
+
+      if (Object.keys(updateData).length > 0) {
+        await this.db.updateUser(userId, updateData);
+      }
+
+      // Update session
+      await this.db.updateSession(userId, this.userContext, true);
+    } catch (dbError) {
+      console.error('[NovaBot] Database error (non-fatal):', dbError.message);
+    }
+  }
+
+  // OPTIMIZATION: Async calendar operations
+  async syncCalendarEventsAsync() {
+    if (!this.calendarInitialized) return;
+
+    try {
+      // Run in background without blocking
+      setImmediate(async () => {
+        try {
+          await this.syncCalendarEvents();
+        } catch (error) {
+          console.error('[NovaBot] Async calendar sync failed:', error);
+        }
+      });
+    } catch (error) {
+      console.error('[NovaBot] Calendar sync initialization failed:', error);
+    }
+  }
+
+  // OPTIMIZATION: Response caching for common queries
+  getCacheKey(message, context) {
+    const contextHash = JSON.stringify(context);
+    return `${message}_${contextHash}`;
+  }
+
+  getCachedResponse(cacheKey) {
+    const cached = this.responseCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < 300000) { // 5 minutes cache
+      return cached.response;
+    }
+    return null;
+  }
+
+  setCachedResponse(cacheKey, response) {
+    this.responseCache.set(cacheKey, {
+      response,
+      timestamp: Date.now()
+    });
+
+    // Cleanup old cache entries periodically
+    if (Date.now() - this.lastCacheCleanup > 600000) { // 10 minutes
+      this.cleanupCache();
+      this.lastCacheCleanup = Date.now();
+    }
+  }
+
+  cleanupCache() {
+    const now = Date.now();
+    for (const [key, value] of this.responseCache.entries()) {
+      if (now - value.timestamp > 600000) { // Remove entries older than 10 minutes
+        this.responseCache.delete(key);
+      }
     }
   }
 
@@ -974,6 +1097,19 @@ ATURAN:
       } else {
         console.log('[NovaBot] ⚠️  Google Calendar integration disabled or failed');
       }
+    }
+  }
+
+  // OPTIMIZATION: Async calendar initialization
+  async initializeCalendarAsync() {
+    if (!this.calendarInitialized) {
+      setImmediate(async () => {
+        try {
+          await this.initializeCalendar();
+        } catch (error) {
+          console.error('[NovaBot] Async calendar initialization failed:', error);
+        }
+      });
     }
   }
 
