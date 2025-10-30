@@ -139,7 +139,7 @@ export class WhatsAppClient {
 
           // Save to database as outgoing admin message
           try {
-            const db = new (await import('../../../../packages/database/src/database-service.js')).DatabaseService();
+            const db = new DatabaseService();
             await db.saveConversation(
               to,
               '',  // Empty user message since this is outgoing from admin
