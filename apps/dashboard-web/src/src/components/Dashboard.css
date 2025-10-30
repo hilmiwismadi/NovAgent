@@ -91,6 +91,60 @@
   border: 1px solid var(--gray-200);
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+}
+
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-3);
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+.connection-status.online {
+  background: var(--success-100);
+  color: var(--success-600);
+}
+
+.connection-status.online .status-dot {
+  background: var(--success);
+}
+
+.connection-status.offline {
+  background: var(--danger-100);
+  color: var(--danger-600);
+}
+
+.connection-status.offline .status-dot {
+  background: var(--danger);
+  animation: none;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
 .dashboard-header h1 {
   margin: 0;
   color: var(--gray-900);
@@ -530,6 +584,8 @@
   padding: var(--spacing-6);
   border-bottom: 1px solid var(--gray-200);
   background: var(--gray-50);
+  gap: var(--spacing-4);
+  flex-shrink: 0;
 }
 
 .modal-header h2 {
@@ -538,15 +594,21 @@
   font-size: 1.25rem;
   font-weight: 600;
   line-height: 1.25;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .modal-header-actions {
   display: flex;
-  gap: var(--spacing-2);
+  gap: var(--spacing-3);
   align-items: center;
+  flex-shrink: 0;
 }
 
-.modal-header button {
+.modal-header-close {
   background: transparent;
   border: 1px solid var(--gray-300);
   color: var(--gray-500);
@@ -560,9 +622,10 @@
   justify-content: center;
   width: 2rem;
   height: 2rem;
+  flex-shrink: 0;
 }
 
-.modal-header button:hover {
+.modal-header-close:hover {
   background: var(--gray-100);
   color: var(--gray-700);
   border-color: var(--gray-400);
@@ -1046,12 +1109,7 @@
     font-size: 1.125rem;
   }
 
-  .modal-header button {
-    position: absolute;
-    top: var(--spacing-4);
-    right: var(--spacing-4);
-  }
-
+  
   .chat-history-container {
     padding: var(--spacing-4);
   }
@@ -1145,6 +1203,7 @@
   box-shadow: var(--shadow-xl);
   animation: slideUp 0.2s ease-out;
   overflow: hidden;
+  position: relative;
 }
 
 .summary-modal-header {
@@ -1154,6 +1213,9 @@
   padding: var(--spacing-5) var(--spacing-6);
   border-bottom: 2px solid var(--success);
   background: var(--success-100);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
 }
 
 .summary-modal-header h3 {
@@ -1178,6 +1240,9 @@
   font-size: 1rem;
   font-weight: bold;
   transition: all 0.15s ease-in-out;
+  position: relative;
+  z-index: 20;
+  flex-shrink: 0;
 }
 
 .summary-modal-close:hover {
@@ -1188,12 +1253,15 @@
 .summary-modal-body {
   padding: var(--spacing-6);
   overflow-y: auto;
+  overflow-x: hidden;
   flex: 1;
   white-space: pre-wrap;
   color: var(--gray-800);
   line-height: 1.6;
+  word-wrap: break-word;
   word-break: break-word;
   background: var(--gray-50);
+  min-height: 0;
 }
 
 .summary-modal-footer {

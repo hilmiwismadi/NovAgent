@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
 import WhitelistManager from './WhitelistManager';
 import WhatsAppQR from './WhatsAppQR';
 import CustomAlert from './CustomAlert';
 import CustomConfirm from './CustomConfirm';
+import ErrorBoundary from './ErrorBoundary';
 import { useAlert } from '../hooks/useAlert';
 import './Dashboard.css';
 
@@ -26,9 +27,54 @@ export default function Dashboard() {
   const [addingClient, setAddingClient] = useState(false);
   const [whitelistData, setWhitelistData] = useState({});
 
+  // Loading states for various operations
+  const [loadingClients, setLoadingClients] = useState(false);
+  const [loadingWhitelist, setLoadingWhitelist] = useState(false);
+  const [loadingConversations, setLoadingConversations] = useState(false);
+  const [togglingWhitelist, setTogglingWhitelist] = useState({});
+  const [resettingClient, setResettingClient] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Local state for form inputs to provide immediate feedback
+  const [inputValues, setInputValues] = useState({});
+
+  // AbortController for cleanup
+  const abortControllerRef = useRef(null);
+
+  // Online status
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [retryCount, setRetryCount] = useState(0);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      showAlert('Connection restored!', 'success');
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+      showAlert('Connection lost. Please check your internet connection.', 'warning');
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [showAlert]);
+
   useEffect(() => {
     fetchClients();
     fetchWhitelistData();
+
+    // Cleanup function to cancel pending requests
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, []);
 
   // Update page title based on active tab
@@ -41,22 +87,34 @@ export default function Dashboard() {
     document.title = titles[activeTab] || 'NovAgent Dashboard';
   }, [activeTab]);
 
-  const fetchClients = async () => {
+  const fetchClients = async (isRetry = false) => {
     try {
-      setLoading(true);
+      setLoadingClients(true);
       const data = await api.getAllClients();
       setClients(data);
       setError(null);
+      setRetryCount(0);
     } catch (err) {
-      setError(err.message);
       console.error('Error fetching clients:', err);
+
+      // Retry logic if online and haven't retried too many times
+      if (isOnline && !isRetry && retryCount < 2) {
+        setRetryCount(prev => prev + 1);
+        showAlert('Retrying to fetch clients...', 'info');
+        setTimeout(() => fetchClients(true), 2000);
+        return;
+      }
+
+      setError(err.message);
+      showAlert('Failed to fetch clients. Please check your connection and try again.', 'error');
     } finally {
-      setLoading(false);
+      setLoadingClients(false);
     }
   };
 
   const fetchWhitelistData = async () => {
     try {
+      setLoadingWhitelist(true);
       const data = await api.getAllWhitelist('client');
       // Create a map: phoneNumber -> true for quick lookup
       const whitelistMap = {};
@@ -66,15 +124,83 @@ export default function Dashboard() {
       setWhitelistData(whitelistMap);
     } catch (err) {
       console.error('Error fetching whitelist:', err);
+    } finally {
+      setLoadingWhitelist(false);
     }
+  };
+
+  const handleInputChange = (clientId, field, value) => {
+    const key = `${clientId}-${field}`;
+    setInputValues(prev => ({ ...prev, [key]: value }));
+  };
+
+  const createAbortController = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    return abortControllerRef.current;
+  };
+
+  const validatePhoneNumber = (phone) => {
+    if (!phone || !phone.trim()) {
+      return { isValid: false, error: 'Nomor WhatsApp harus diisi!' };
+    }
+
+    const cleanPhone = phone.replace(/\D/g, ''); // Remove non-digit characters
+
+    // Check if it starts with Indonesian country code or regional format
+    if (cleanPhone.startsWith('0')) {
+      if (cleanPhone.length < 10 || cleanPhone.length > 13) {
+        return { isValid: false, error: 'Nomor telepon tidak valid (10-13 digit)' };
+      }
+    } else if (cleanPhone.startsWith('62')) {
+      if (cleanPhone.length < 11 || cleanPhone.length > 14) {
+        return { isValid: false, error: 'Nomor telepon tidak valid (11-14 digit dengan +62)' };
+      }
+    } else {
+      return { isValid: false, error: 'Nomor harus dimulai dengan 0 atau 62' };
+    }
+
+    return { isValid: true, error: null };
+  };
+
+  const validateInstagramUrl = (url) => {
+    if (!url || !url.trim()) {
+      return { isValid: true, error: null }; // Empty is allowed
+    }
+
+    const igRegex = /^https?:\/\/(www\.)?instagram\.com\/[a-zA-Z0-9._-]+\/?$/;
+    if (!igRegex.test(url.trim())) {
+      return { isValid: false, error: 'URL Instagram tidak valid' };
+    }
+
+    return { isValid: true, error: null };
   };
 
   const handleUpdate = async (id, field, value) => {
     try {
+      // Validate Instagram URL if field is igLink
+      if (field === 'igLink' && value) {
+        const validation = validateInstagramUrl(value);
+        if (!validation.isValid) {
+          showAlert(validation.error, 'warning');
+          // Reset input value
+          const key = `${id}-${field}`;
+          setInputValues(prev => ({ ...prev, [key]: undefined }));
+          return;
+        }
+      }
+
       await api.updateClient(id, { [field]: value });
-      setClients(clients.map(c =>
-        c.id === id ? { ...c, [field]: value } : c
-      ));
+      setClients(prevClients =>
+        prevClients.map(c =>
+          c.id === id ? { ...c, [field]: value } : c
+        )
+      );
+      // Clear the input value after successful update
+      const key = `${id}-${field}`;
+      setInputValues(prev => ({ ...prev, [key]: undefined }));
     } catch (err) {
       console.error('Error updating client:', err);
       showAlert('Failed to update: ' + err.message, 'error');
@@ -83,6 +209,7 @@ export default function Dashboard() {
 
   const handleViewConversations = async (client) => {
     try {
+      setLoadingConversations(true);
       setSelectedClient(client);
       setConversationSummary(null); // Reset summary when opening new chat
       const convs = await api.getConversations(client.id);
@@ -98,26 +225,43 @@ export default function Dashboard() {
     } catch (err) {
       console.error('Error fetching conversations:', err);
       showAlert('Failed to fetch conversations: ' + err.message, 'error');
+    } finally {
+      setLoadingConversations(false);
     }
   };
 
-  const handleResetContext = (client) => {
+  const handleDeleteClient = (client) => {
     showConfirm(
       `HAPUS client ${client.nama || formatPhone(client.id)}?\n\n` +
       `⚠️ PERHATIAN: Ini akan MENGHAPUS PERMANENT:\n` +
       `• Semua conversation history\n` +
       `• Event details & pricing\n` +
       `• Meeting schedules\n` +
-      `• User record dari database\n\n` +
+      `• User record dari database\n` +
+      `• Memory context & cache\n\n` +
       `❌ Row akan HILANG dari tabel!\n` +
       `❌ Tindakan ini TIDAK BISA dibatalkan!\n\n` +
       `Client harus didaftarkan ulang jika ingin chat lagi.`,
       async () => {
         // User confirmed - proceed with DELETE
         try {
-          const result = await api.resetClientContext(client.id);
+          setResettingClient(client.id);
 
-          // Immediately REMOVE the client from the table
+          // Use the proper deleteClient API instead of resetClientContext
+          await api.deleteClient(client.id);
+
+          // Also try to remove from whitelist for complete cleanup
+          try {
+            const isWhitelisted = whitelistData[client.id] || false;
+            if (isWhitelisted) {
+              await api.removeFromWhitelist(client.id);
+            }
+          } catch (whitelistErr) {
+            console.warn('Could not remove from whitelist:', whitelistErr);
+            // Don't fail the whole operation if whitelist removal fails
+          }
+
+          // Only update state AFTER successful API call
           setClients(prevClients => prevClients.filter(c => c.id !== client.id));
 
           // Close modal if open
@@ -126,26 +270,47 @@ export default function Dashboard() {
             setConversations([]);
           }
 
+          // Remove from whitelist data if present
+          setWhitelistData(prev => {
+            const newData = { ...prev };
+            delete newData[client.id];
+            return newData;
+          });
+
+          // Clear any input values related to this client
+          setInputValues(prev => {
+            const newValues = { ...prev };
+            Object.keys(newValues).forEach(key => {
+              if (key.startsWith(`${client.id}-`)) {
+                delete newValues[key];
+              }
+            });
+            return newValues;
+          });
+
           // Show success message
           showAlert(
             `✅ Client berhasil dihapus!\n\n` +
-            `Client: ${result.clientName || 'N/A'}\n` +
-            `Organisasi: ${result.clientOrg || 'N/A'}\n\n` +
+            `Client: ${client.nama || formatPhone(client.id)}\n\n` +
             `Deleted:\n` +
-            `✓ ${result.deletedConversations} conversations\n` +
-            `✓ All client data\n` +
-            `✓ User record\n\n` +
-            `Row telah dihapus dari tabel!`,
+            `✓ All client data from database\n` +
+            `✓ Conversation history\n` +
+            `✓ User record\n` +
+            `✓ Memory context & cache\n\n` +
+            `Row telah dihapus permanen dari tabel!`,
             'success'
           );
         } catch (err) {
           console.error('Error deleting client:', err);
           showAlert('Failed to delete client: ' + err.message, 'error');
+        } finally {
+          setResettingClient(null);
         }
       },
       () => {
         // User cancelled - do nothing
         console.log('Reset cancelled by user');
+        setResettingClient(null);
       }
     );
   };
@@ -203,18 +368,65 @@ export default function Dashboard() {
 
   const handleAddClient = async (e) => {
     e.preventDefault();
-    if (!newClientPhone.trim()) {
-      showAlert('Nomor WhatsApp harus diisi!', 'warning');
+
+    // Validate phone number
+    const phoneValidation = validatePhoneNumber(newClientPhone);
+    if (!phoneValidation.isValid) {
+      showAlert(phoneValidation.error, 'warning');
       return;
     }
 
     try {
       setAddingClient(true);
-      await api.addToWhitelist({
-        phoneNumber: newClientPhone,
-        type: 'client',
-        nama: newClientName || null
-      });
+
+      // Format phone number to WhatsApp format
+      const formattedPhone = newClientPhone.startsWith('0')
+        ? `62${newClientPhone.slice(1)}@c.us`
+        : `${newClientPhone}@c.us`;
+
+      // Check if client already exists
+      const existingClients = await api.getAllClients();
+      const existingClient = existingClients.find(c => c.id === formattedPhone);
+
+      if (existingClient) {
+        showAlert('Client dengan nomor ini sudah ada di dashboard!', 'warning');
+        // Refresh data to show existing client
+        await fetchClients();
+        await fetchWhitelistData();
+        return;
+      }
+
+      // Check if phone exists in whitelist but not in clients (inconsistent state)
+      const existingWhitelist = await api.getAllWhitelist('client');
+      const existingWhitelistEntry = existingWhitelist.find(w => w.phoneNumber === formattedPhone);
+
+      if (existingWhitelistEntry) {
+        // Fix inconsistent state: create client record to match whitelist
+        await api.createClient({
+          id: formattedPhone,
+          nama: newClientName || existingWhitelistEntry.nama || null,
+          dealStatus: 'prospect',
+          status: 'To Do'
+        });
+
+        showAlert('Client sudah ada di whitelist, rekam client telah dibuat ulang!', 'success');
+      } else {
+        // New client: create both client record and whitelist entry
+        await api.createClient({
+          id: formattedPhone,
+          nama: newClientName || null,
+          dealStatus: 'prospect',
+          status: 'To Do'
+        });
+
+        await api.addToWhitelist({
+          phoneNumber: formattedPhone,
+          type: 'client',
+          nama: newClientName || null
+        });
+
+        showAlert('Client berhasil ditambahkan!\nBot sekarang akan merespon chat dari nomor ini.', 'success');
+      }
 
       // Clear form
       setNewClientPhone('');
@@ -224,7 +436,6 @@ export default function Dashboard() {
       await fetchClients();
       await fetchWhitelistData();
 
-      showAlert('Client berhasil ditambahkan!\nBot sekarang akan merespon chat dari nomor ini.', 'success');
     } catch (err) {
       console.error('Error adding client:', err);
       showAlert('Gagal menambah client: ' + err.message, 'error');
@@ -246,8 +457,9 @@ export default function Dashboard() {
   };
 
   const executeToggleWhitelist = async (phoneNumber, currentStatus, actionIng) => {
-
     try {
+      setTogglingWhitelist(prev => ({ ...prev, [phoneNumber]: true }));
+
       if (currentStatus) {
         // Remove from whitelist
         await api.removeFromWhitelist(phoneNumber);
@@ -265,10 +477,12 @@ export default function Dashboard() {
     } catch (err) {
       console.error(`Error ${actionIng} whitelist:`, err);
       showAlert(`Gagal ${actionIng} whitelist: ` + err.message, 'error');
+    } finally {
+      setTogglingWhitelist(prev => ({ ...prev, [phoneNumber]: false }));
     }
   };
 
-  if (loading) {
+  if (loadingClients && !clients.length) {
     return (
       <div className="dashboard-container">
         <div className="loading">Loading dashboard...</div>
@@ -288,7 +502,13 @@ export default function Dashboard() {
   return (
     <div className="dashboard-container">
       <header className="dashboard-header">
-        <h1>NovAgent CRM Dashboard</h1>
+        <div className="header-left">
+          <h1>NovAgent CRM Dashboard</h1>
+          <div className={`connection-status ${isOnline ? 'online' : 'offline'}`}>
+            <span className="status-dot"></span>
+            {isOnline ? 'Online' : 'Offline'}
+          </div>
+        </div>
         <div className="tab-navigation">
           <button
             onClick={() => setActiveTab('crm')}
@@ -310,17 +530,33 @@ export default function Dashboard() {
           </button>
         </div>
         {activeTab === 'crm' && (
-          <button onClick={fetchClients} className="refresh-btn">
-            Refresh
+          <button
+            onClick={async () => {
+              setRefreshing(true);
+              try {
+                await fetchClients();
+                await fetchWhitelistData();
+                showAlert('Data refreshed successfully!', 'success');
+              } catch (err) {
+                showAlert('Failed to refresh data: ' + err.message, 'error');
+              } finally {
+                setRefreshing(false);
+              }
+            }}
+            className="refresh-btn"
+            disabled={refreshing}
+          >
+            {refreshing ? 'Refreshing...' : 'Refresh'}
           </button>
         )}
       </header>
 
       {/* CRM TAB CONTENT */}
       {activeTab === 'crm' && (
-        <>
-          {/* Add Client Section */}
-          <div className="add-client-section">
+        <ErrorBoundary>
+          <>
+            {/* Add Client Section */}
+            <div className="add-client-section">
             <h3>Tambah Client Baru</h3>
             <p className="section-description">
               Client yang ditambahkan otomatis masuk ke whitelist agar bot bisa merespon chat mereka.
@@ -399,16 +635,17 @@ export default function Dashboard() {
                     onClick={() => handleToggleWhitelist(client.id, isWhitelisted)}
                     className={`whitelist-toggle-btn ${isWhitelisted ? 'active' : 'inactive'}`}
                     title={isWhitelisted ? 'Klik untuk remove dari whitelist' : 'Klik untuk add ke whitelist'}
+                    disabled={togglingWhitelist[client.id]}
                   >
-                    {isWhitelisted ? 'Active' : 'Inactive'}
+                    {togglingWhitelist[client.id] ? '...' : (isWhitelisted ? 'Active' : 'Inactive')}
                   </button>
                 </td>
                 <td className="phone-cell">{formatPhone(client.id)}</td>
                 <td>
                   <input
                     type="text"
-                    value={client.nama || ''}
-                    onChange={(e) => handleUpdate(client.id, 'nama', e.target.value)}
+                    value={inputValues[`${client.id}-nama`] ?? (client.nama || '')}
+                    onChange={(e) => handleInputChange(client.id, 'nama', e.target.value)}
                     onBlur={(e) => handleUpdate(client.id, 'nama', e.target.value)}
                     placeholder="Nama"
                   />
@@ -416,8 +653,8 @@ export default function Dashboard() {
                 <td>
                   <input
                     type="text"
-                    value={client.instansi || ''}
-                    onChange={(e) => handleUpdate(client.id, 'instansi', e.target.value)}
+                    value={inputValues[`${client.id}-instansi`] ?? (client.instansi || '')}
+                    onChange={(e) => handleInputChange(client.id, 'instansi', e.target.value)}
                     onBlur={(e) => handleUpdate(client.id, 'instansi', e.target.value)}
                     placeholder="Instansi"
                   />
@@ -425,8 +662,8 @@ export default function Dashboard() {
                 <td>
                   <input
                     type="text"
-                    value={client.event || ''}
-                    onChange={(e) => handleUpdate(client.id, 'event', e.target.value)}
+                    value={inputValues[`${client.id}-event`] ?? (client.event || '')}
+                    onChange={(e) => handleInputChange(client.id, 'event', e.target.value)}
                     onBlur={(e) => handleUpdate(client.id, 'event', e.target.value)}
                     placeholder="Event"
                   />
@@ -434,8 +671,8 @@ export default function Dashboard() {
                 <td>
                   <input
                     type="text"
-                    value={client.igLink || ''}
-                    onChange={(e) => handleUpdate(client.id, 'igLink', e.target.value)}
+                    value={inputValues[`${client.id}-igLink`] ?? (client.igLink || '')}
+                    onChange={(e) => handleInputChange(client.id, 'igLink', e.target.value)}
                     onBlur={(e) => handleUpdate(client.id, 'igLink', e.target.value)}
                     placeholder="Instagram URL"
                     className="ig-link-input"
@@ -497,15 +734,17 @@ export default function Dashboard() {
                     <button
                       className="action-btn"
                       onClick={() => handleViewConversations(client)}
+                      disabled={loadingConversations}
                     >
-                      Chat
+                      {loadingConversations ? 'Loading...' : 'Chat'}
                     </button>
                     <button
                       className="action-btn reset-btn"
-                      onClick={() => handleResetContext(client)}
-                      title="Reset conversation history & context"
+                      onClick={() => handleDeleteClient(client)}
+                      title="Delete client permanently from database"
+                      disabled={resettingClient === client.id}
                     >
-                      Reset
+                      {resettingClient === client.id ? 'Deleting...' : 'Delete'}
                     </button>
                   </div>
                 </td>
@@ -529,7 +768,12 @@ export default function Dashboard() {
                 >
                   {loadingSummary ? 'Loading...' : 'Summary'}
                 </button>
-                <button onClick={() => setSelectedClient(null)}>×</button>
+                <button
+                  onClick={() => setSelectedClient(null)}
+                  className="modal-header-close"
+                >
+                  ×
+                </button>
               </div>
             </div>
 
@@ -628,17 +872,22 @@ export default function Dashboard() {
           </div>
         </div>
       )}
-        </>
+          </>
+        </ErrorBoundary>
       )}
 
       {/* WHITELIST TAB CONTENT */}
       {activeTab === 'whitelist' && (
-        <WhitelistManager />
+        <ErrorBoundary>
+          <WhitelistManager />
+        </ErrorBoundary>
       )}
 
       {/* WHATSAPP TAB CONTENT */}
       {activeTab === 'whatsapp' && (
-        <WhatsAppQR />
+        <ErrorBoundary>
+          <WhatsAppQR />
+        </ErrorBoundary>
       )}
 
       {/* Custom Alert and Confirm Modals */}

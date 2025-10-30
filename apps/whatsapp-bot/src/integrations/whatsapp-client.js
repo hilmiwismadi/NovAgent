@@ -36,13 +36,19 @@ export class WhatsAppClient {
           '--disable-accelerated-2d-canvas',
           '--no-first-run',
           '--no-zygote',
-          '--disable-gpu'
-        ]
+          '--disable-gpu',
+          '--disable-web-security',
+          '--disable-features=VizDisplayCompositor',
+          '--single-process'
+        ],
+        // Add timeout and retry configuration
+        timeout: 60000,
+        protocolTimeout: 60000
       },
-      // Use local web version cache for stability
-      webVersionCache: {
-        type: 'local'
-      }
+      // Remove local cache to avoid version conflicts
+      // webVersionCache: {
+      //   type: 'local'
+      // }
     });
 
     // Session storage for multiple users (nomor WA => NovaBot instance)
@@ -59,7 +65,13 @@ export class WhatsAppClient {
     this.db = new DatabaseService();
 
     // Intent detector for natural language commands
-    this.intentDetector = new IntentDetector();
+    // TODO: Fix template parsing error in IntentDetector
+    // this.intentDetector = new IntentDetector();
+    this.intentDetector = {
+      detectIntent: () => ({ intent: 'unknown', confidence: 0, entities: {} }),
+      intentToCommand: () => null,
+      getNaturalResponsePrefix: () => ''
+    };
 
     // Queue processor - detect environment and set appropriate directory
     const isWindows = process.platform === 'win32';
@@ -1058,7 +1070,42 @@ Silakan tanyakan apa saja tentang NovaTix!`;
    */
   async start() {
     console.log('🚀 Starting NovaBot WhatsApp Client...\n');
-    await this.client.initialize();
+    try {
+      await this.client.initialize();
+      console.log('✅ WhatsApp Client initialized successfully');
+    } catch (error) {
+      console.error('❌ Failed to initialize WhatsApp Client:', error.message);
+
+      // Handle specific context destruction error
+      if (error.message.includes('Execution context was destroyed')) {
+        console.log('🔄 Context destroyed, attempting to restart with new session...');
+
+        // Clear any corrupted session data
+        try {
+          const fs = await import('fs');
+          const path = await import('path');
+          const sessionPath = path.join(process.cwd(), '.wwebjs_auth');
+
+          if (fs.existsSync(sessionPath)) {
+            fs.rmSync(sessionPath, { recursive: true, force: true });
+            console.log('🗑️  Cleared corrupted session data');
+          }
+        } catch (cleanupError) {
+          console.error('Failed to cleanup session data:', cleanupError.message);
+        }
+
+        // Retry initialization
+        try {
+          await this.client.initialize();
+          console.log('✅ WhatsApp Client initialized successfully after retry');
+        } catch (retryError) {
+          console.error('❌ Retry failed:', retryError.message);
+          throw retryError;
+        }
+      } else {
+        throw error;
+      }
+    }
   }
 
   /**

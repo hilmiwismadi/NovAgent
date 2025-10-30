@@ -29,10 +29,14 @@ export class GoogleCalendarService {
         'urn:ietf:wg:oauth:2.0:oob' // For installed apps
       );
 
-      // Set refresh token
-      this.auth.setCredentials({
-        refresh_token: process.env.GOOGLE_REFRESH_TOKEN
-      });
+      // Set credentials with both access and refresh tokens
+      const credentials = {
+        refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+        access_token: process.env.GOOGLE_ACCESS_TOKEN
+      };
+
+      this.auth.setCredentials(credentials);
+      console.log('[Calendar] Using provided access token directly...');
 
       // Initialize calendar API
       this.calendar = google.calendar({ version: 'v3', auth: this.auth });
@@ -103,11 +107,33 @@ export class GoogleCalendarService {
         reminders
       };
 
-      const response = await this.calendar.events.insert({
-        calendarId: process.env.GOOGLE_CALENDAR_ID || 'primary',
-        resource: event,
-        sendUpdates: 'all' // Send email notifications
-      });
+      let response;
+      try {
+        response = await this.calendar.events.insert({
+          calendarId: process.env.GOOGLE_CALENDAR_ID || 'primary',
+          resource: event,
+          sendUpdates: 'all' // Send email notifications
+        });
+      } catch (error) {
+        // If token expired, try to refresh and retry once
+        if (error.message.includes('unauthorized') || error.message.includes('invalid_token')) {
+          console.log('[Calendar] Token expired, attempting refresh...');
+          try {
+            await this.auth.refreshAccessToken();
+            console.log('[Calendar] Token refreshed successfully, retrying event creation...');
+            response = await this.calendar.events.insert({
+              calendarId: process.env.GOOGLE_CALENDAR_ID || 'primary',
+              resource: event,
+              sendUpdates: 'all'
+            });
+          } catch (refreshError) {
+            console.error('[Calendar] Token refresh failed:', refreshError.message);
+            throw new Error('Calendar authentication failed - please refresh OAuth credentials');
+          }
+        } else {
+          throw error;
+        }
+      }
 
       console.log(`[Calendar] Created event: ${response.data.id} - ${summary}`);
       return {

@@ -37,52 +37,45 @@ export class IntentDetector {
     };
 
     // Create intent classification prompt
-    const systemPrompt = `Kamu adalah AI classifier untuk mendeteksi intent dari pesan Bahasa Indonesia yang casual.
-
-KATEGORI INTENT YANG TERSEDIA:
-- stats: statistik, overview, performa, conversion rate, total client, jumlah client
-- clients: daftar client, list client, semua client, lihat client, client apa saja
-- leads: daftar lead, list lead, prospect, calon client, yang belum deal, yang masih prospect
-- deals: berapa deal, daftar deal, yang sudah deal, negosiasi, yang lagi nego, client deal
-- today: aktivitas hari ini, update hari ini, report hari ini, laporan hari ini, client baru hari ini
-- active: client aktif, sedang chat, online, sesi aktif, yang lagi aktif
-- events: daftar event, list event, semua event, lihat event, event apa saja
-- search: cari client, search client, find client, cari nama, cari instansi, cari organisasi
-- clientDetail: info client, detail client, data client, siapa itu, gimana client, bagaimana client
-- history: riwayat chat, history percakapan, chat dengan, pernah bicara, percakapan dengan
-- pricing: harga, pricing, budget, biaya, range harga, filter harga, client dengan harga
-- help: bantuan, help, gimana cara, bagaimana cara, bisa tanya apa, tolong, butuh bantuan
-
-RESPON DALAM FORMAT JSON:
-{
-  "intent": "nama_intent",
-  "confidence": 0.9,
-  "entities": {
-    "searchTerm": "jika ada pencarian",
-    "clientId": "jika ada identitas client",
-    "minPrice": "jika ada harga minimum",
-    "maxPrice": "jika ada harga maksimum"
-  }
-}
-
-CONTOH:
-Pesan: "Berapa jumlah client kita?"
-Response: {"intent": "stats", "confidence": 0.95, "entities": {}}
-
-Pesan: "Cari client dari PT Maju Jaya"
-Response: {"intent": "search", "confidence": 0.9, "entities": {"searchTerm": "PT Maju Jaya"}}
-
-Pesan: "Riwayat chat dengan Budi"
-Response: {"intent": "history", "confidence": 0.9, "entities": {"clientId": "Budi"}}
-
-Pesan: "Client dengan harga 50k-100k"
-Response: {"intent": "pricing", "confidence": 0.9, "entities": {"minPrice": 50000, "maxPrice": 100000}}
-
-Petunjuk:
-- Deteksi intent dengan confidence 0.6-1.0
-- Extract entities jika relevan (nama client, harga, dll)
-- Jika pesan tidak jelas, beri confidence rendah
-- Jika pesan dimulai dengan '/', itu adalah command intent`;
+    let systemPrompt = 'Kamu adalah AI classifier untuk mendeteksi intent dari pesan Bahasa Indonesia yang casual.\n\n' +
+      'KATEGORI INTENT YANG TERSEDIA:\n' +
+      '- stats: statistik, overview, performa, conversion rate, total client, jumlah client\n' +
+      '- clients: daftar client, list client, semua client, lihat client, client apa saja\n' +
+      '- leads: daftar lead, list lead, prospect, calon client, yang belum deal, yang masih prospect\n' +
+      '- deals: berapa deal, daftar deal, yang sudah deal, negosiasi, yang lagi nego, client deal\n' +
+      '- today: aktivitas hari ini, update hari ini, report hari ini, laporan hari ini, client baru hari ini\n' +
+      '- active: client aktif, sedang chat, online, sesi aktif, yang lagi aktif\n' +
+      '- events: daftar event, list event, semua event, lihat event, event apa saja\n' +
+      '- search: cari client, search client, find client, cari nama, cari instansi, cari organisasi\n' +
+      '- clientDetail: info client, detail client, data client, siapa itu, gimana client, bagaimana client\n' +
+      '- history: riwayat chat, history percakapan, chat dengan, pernah bicara, percakapan dengan\n' +
+      '- pricing: harga, pricing, budget, biaya, range harga, filter harga, client dengan harga\n' +
+      '- help: bantuan, help, gimana cara, bagaimana cara, bisa tanya apa, tolong, butuh bantuan\n\n' +
+      'RESPON DALAM FORMAT JSON:\n' +
+      '{\n' +
+      '  "intent": "nama_intent",\n' +
+      '  "confidence": 0.9,\n' +
+      '  "entities": {\n' +
+      '    "searchTerm": "jika ada pencarian",\n' +
+      '    "clientId": "jika ada identitas client",\n' +
+      '    "minPrice": "jika ada harga minimum",\n' +
+      '    "maxPrice": "jika ada harga maksimum"\n' +
+      '  }\n' +
+      '}\n\n' +
+      'CONTOH:\n' +
+      'Pesan: "Berapa jumlah client kita?"\n' +
+      'Response: {"intent": "stats", "confidence": 0.95, "entities": {}}\n\n' +
+      'Pesan: "Cari client dari PT Maju Jaya"\n' +
+      'Response: {"intent": "search", "confidence": 0.9, "entities": {"searchTerm": "PT Maju Jaya"}}\n\n' +
+      'Pesan: "Riwayat chat dengan Budi"\n' +
+      'Response: {"intent": "history", "confidence": 0.9, "entities": {"clientId": "Budi"}}\n\n' +
+      'Pesan: "Client dengan harga 50k-100k"\n' +
+      'Response: {"intent": "pricing", "confidence": 0.9, "entities": {"minPrice": 50000, "maxPrice": 100000}}\n\n' +
+      'Petunjuk:\n' +
+      '- Deteksi intent dengan confidence 0.6-1.0\n' +
+      '- Extract entities jika relevan (nama client, harga, dll)\n' +
+      '- Jika pesan tidak jelas, beri confidence rendah\n' +
+      '- Jika pesan dimulai dengan "/", itu adalah command intent';
 
     this.intentPrompt = ChatPromptTemplate.fromMessages([
       ["system", systemPrompt],

@@ -21,7 +21,10 @@ class DashboardAPI {
 
       return await response.json();
     } catch (error) {
-      console.error(`[API] Error fetching ${endpoint}:`, error);
+      // Don't log error if request was aborted
+      if (error.name !== 'AbortError') {
+        console.error(`[API] Error fetching ${endpoint}:`, error);
+      }
       throw error;
     }
   }
