@@ -6,7 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { NovaBot } from '../agent/novabot.js';
-import { DatabaseService } from '../database/database-service.js';
+import { DatabaseService } from '../../../../packages/database/src/database-service.js';
 import { IntentDetector } from '../utils/intent-detector.js';
 import whitelistService from '../services/whitelistService.js';
 
@@ -54,12 +54,9 @@ export class WhatsAppClient {
     // Session storage for multiple users (nomor WA => NovaBot instance)
     this.sessions = new Map();
 
-    // Whitelist configuration
-    this.whitelistEnabled = process.env.WA_WHITELIST_ENABLED === 'true';
-    this.whitelist = this.parseWhitelist(process.env.WA_WHITELIST);
-
-    // Internal team numbers configuration
-    this.internalNumbers = this.parseWhitelist(process.env.WA_INTERNAL_NUMBERS);
+    // Whitelist configuration - REAL-TIME DATABASE ACCESS
+    this.whitelistEnabled = true; // Always enabled when using database
+    // NO CACHING - Will query database directly in real-time
 
     // Database service for internal queries
     this.db = new DatabaseService();
@@ -250,78 +247,43 @@ export class WhatsAppClient {
     }
   }
 
+  
+  
   /**
-   * Parse whitelist from environment variable
+   * Check if a contact is whitelisted (REAL-TIME DATABASE CHECK)
    */
-  parseWhitelist(whitelistStr) {
-    if (!whitelistStr || whitelistStr.trim() === '') {
-      return [];
-    }
-    return whitelistStr.split(',').map(num => num.trim()).filter(num => num);
-  }
-
-  /**
-   * Load whitelist from database
-   * This overrides .env whitelist with database values
-   */
-  async loadWhitelistFromDB() {
-    try {
-      console.log('[WhatsApp] Loading whitelist from database...');
-
-      const [clientNumbers, internalNumbers] = await Promise.all([
-        whitelistService.getPhoneNumbersByType('client'),
-        whitelistService.getPhoneNumbersByType('internal')
-      ]);
-
-      this.whitelist = clientNumbers;
-      this.internalNumbers = internalNumbers;
-
-      console.log(`[WhatsApp] ✅ Whitelist loaded from database:`);
-      console.log(`  - ${clientNumbers.length} client numbers`);
-      console.log(`  - ${internalNumbers.length} internal numbers`);
-
-      return true;
-    } catch (error) {
-      console.error('[WhatsApp] ❌ Error loading whitelist from database:', error.message);
-      console.log('[WhatsApp] ⚠️  Falling back to .env whitelist');
-      return false;
-    }
-  }
-
-  /**
-   * Refresh whitelist from database
-   * Called periodically to sync with database changes
-   */
-  async refreshWhitelist() {
-    await this.loadWhitelistFromDB();
-  }
-
-  /**
-   * Check if a contact is whitelisted
-   */
-  isWhitelisted(contactId) {
+  async isWhitelisted(contactId) {
     // If whitelist is disabled, allow all
     if (!this.whitelistEnabled) {
       return true;
     }
 
-    // STRICT MODE: If whitelist is empty, BLOCK all (default secure)
-    if (this.whitelist.length === 0) {
+    try {
+      // Real-time database check
+      const isWhitelisted = await whitelistService.isWhitelisted(contactId, 'client');
+      console.log(`[Whitelist] Real-time check: ${contactId} -> ${isWhitelisted ? 'ALLOWED' : 'BLOCKED'}`);
+      return isWhitelisted;
+    } catch (error) {
+      console.error('[Whitelist] Error checking whitelist in real-time:', error.message);
+      // FAIL SAFE: If database check fails, block the message for security
       return false;
     }
-
-    // Check if contact is in whitelist
-    return this.whitelist.includes(contactId);
   }
 
   /**
-   * Check if a contact is internal team member
+   * Check if a contact is internal team member (REAL-TIME DATABASE CHECK)
    */
-  isInternalTeam(contactId) {
-    if (this.internalNumbers.length === 0) {
+  async isInternalTeam(contactId) {
+    try {
+      // Real-time database check
+      const isInternal = await whitelistService.isWhitelisted(contactId, 'internal');
+      console.log(`[Internal] Real-time check: ${contactId} -> ${isInternal ? 'INTERNAL' : 'CLIENT'}`);
+      return isInternal;
+    } catch (error) {
+      console.error('[Internal] Error checking internal team in real-time:', error.message);
+      // FAIL SAFE: If database check fails, assume it's not internal
       return false;
     }
-    return this.internalNumbers.includes(contactId);
   }
 
   /**
@@ -426,35 +388,18 @@ export class WhatsAppClient {
       console.log('  ✅ NovaBot WhatsApp Client is Ready!');
       console.log('='.repeat(60));
 
-      // Load whitelist from database (overrides .env)
-      await this.loadWhitelistFromDB();
-
-      if (this.whitelistEnabled) {
-        if (this.whitelist.length > 0) {
-          console.log('\n📋 Whitelist ACTIVE Mode:');
-          console.log('  ✅ Client whitelist:', this.whitelist.length, 'numbers');
-          console.log('  ✅ Internal whitelist:', this.internalNumbers.length, 'numbers');
-          console.log('  🔐 Bot will only respond to whitelisted numbers');
-        } else {
-          console.log('\n🔒 Whitelist STRICT Mode:');
-          console.log('  ⚠️  Whitelist is EMPTY');
-          console.log('  🚫 Bot will NOT respond to ANY messages');
-          console.log('  ℹ️  Add numbers via dashboard to enable responses');
-        }
-      } else {
-        console.log('\n⚠️  Whitelist DISABLED - Bot will accept all messages');
-      }
+      // REAL-TIME WHITELIST: No caching, checking database directly for each message
+      console.log('\n📋 Whitelist ACTIVE Mode (Real-time Database):');
+      console.log('  ✅ Checking whitelist in real-time from database');
+      console.log('  ✅ Checking internal team status in real-time from database');
+      console.log('  🔐 Bot will query database for each incoming message');
 
       console.log('\n' + '='.repeat(60) + '\n');
 
       // Start queue processor for dashboard messages
       this.startQueueProcessor();
 
-      // Refresh whitelist from database every 5 minutes
-      setInterval(async () => {
-        console.log('[WhatsApp] 🔄 Refreshing whitelist from database...');
-        await this.refreshWhitelist();
-      }, 5 * 60 * 1000); // 5 minutes
+      // NO MORE REFRESH INTERVALS - Using real-time database access
     });
 
     // Authentication success
@@ -860,13 +805,10 @@ export class WhatsAppClient {
         return;
       }
 
-      // Check whitelist
-      if (!this.isWhitelisted(contactId)) {
-        if (this.whitelist.length === 0) {
-          console.log(`[WhatsApp] 🚫 BLOCKED: Message from ${contactName} (${contactId}) - Whitelist is EMPTY (strict mode)`);
-        } else {
-          console.log(`[WhatsApp] 🚫 BLOCKED: Message from ${contactName} (${contactId}) - NOT in whitelist`);
-        }
+      // Check whitelist (REAL-TIME DATABASE CHECK)
+      const isWhitelisted = await this.isWhitelisted(contactId);
+      if (!isWhitelisted) {
+        console.log(`[WhatsApp] 🚫 BLOCKED: Message from ${contactName} (${contactId}) - NOT in database whitelist`);
         return;
       }
 
@@ -889,8 +831,8 @@ export class WhatsAppClient {
       // This prevents race condition where message creates session before reset is processed
       await this.processResetSignals();
 
-      // Check if sender is internal team
-      const isInternal = this.isInternalTeam(contactId);
+      // Check if sender is internal team (REAL-TIME DATABASE CHECK)
+      const isInternal = await this.isInternalTeam(contactId);
 
       // Handle internal team messages (both commands and natural language)
       if (isInternal) {
